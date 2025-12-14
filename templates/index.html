@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Analyzer - AI-Powered Video Analysis</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="23 7 16 12 23 17 23 7"></polygon>
+                    <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+                </svg>
+                <h1>Video Analyzer</h1>
+            </div>
+            <p class="subtitle">AI-powered video analysis with Gemini and OpenRouter</p>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Step 1: Provider Selection -->
+            <section class="card" id="provider-section">
+                <h2 class="card-title">
+                    <span class="step-number">1</span>
+                    Select AI Provider
+                </h2>
+                <div class="provider-selection">
+                    <label class="provider-option">
+                        <input type="radio" name="provider" value="gemini" checked>
+                        <div class="provider-card">
+                            <div class="provider-icon gemini-icon">G</div>
+                            <div class="provider-info">
+                                <h3>Google Gemini</h3>
+                                <p>Direct API access to Gemini models</p>
+                            </div>
+                            <span class="status-badge" id="gemini-status">Not configured</span>
+                        </div>
+                    </label>
+                    <label class="provider-option">
+                        <input type="radio" name="provider" value="openrouter">
+                        <div class="provider-card">
+                            <div class="provider-icon openrouter-icon">OR</div>
+                            <div class="provider-info">
+                                <h3>OpenRouter</h3>
+                                <p>Access multiple AI models via OpenRouter</p>
+                            </div>
+                            <span class="status-badge" id="openrouter-status">Not configured</span>
+                        </div>
+                    </label>
+                </div>
+
+                <!-- API Key Input (shown when not configured) -->
+                <div class="api-key-section" id="api-key-section" style="display: none;">
+                    <div class="alert alert-warning">
+                        <svg class="alert-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                            <line x1="12" y1="9" x2="12" y2="13"></line>
+                            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                        </svg>
+                        <span>API key not configured for <strong id="provider-name">this provider</strong></span>
+                    </div>
+                    <div class="api-key-input-group">
+                        <input type="password" id="api-key-input" placeholder="Enter your API key" class="input-field">
+                        <button class="btn btn-primary" id="save-api-key-btn">
+                            <span class="btn-text">Save Key</span>
+                            <span class="btn-loading" style="display: none;">
+                                <svg class="spinner" viewBox="0 0 24 24">
+                                    <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" fill="none" stroke-dasharray="31.4 31.4" stroke-linecap="round"></circle>
+                                </svg>
+                            </span>
+                        </button>
+                    </div>
+                    <p class="api-key-hint" id="api-key-hint">
+                        Get your Gemini API key from <a href="https://aistudio.google.com/apikey" target="_blank">Google AI Studio</a>
+                    </p>
+                </div>
+
+                <!-- Reset Key Section (shown when configured) -->
+                <div class="api-key-section" id="reset-key-section" style="display: none;">
+                    <div class="alert alert-success">
+                        <svg class="alert-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                        </svg>
+                        <span>API key configured for <strong id="configured-provider-name">this provider</strong></span>
+                    </div>
+                    <div class="reset-key-actions">
+                        <button class="btn btn-secondary" id="change-key-btn">
+                            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                            </svg>
+                            Change Key
+                        </button>
+                        <button class="btn btn-danger" id="reset-key-btn">
+                            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="3 6 5 6 21 6"></polyline>
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                            </svg>
+                            Reset Key
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Model Selection -->
+                <div class="model-selection" id="model-section">
+                    <label class="label">Select Model</label>
+                    <select id="model-select" class="select-field">
+                        <option value="">Loading models...</option>
+                    </select>
+                </div>
+            </section>
+
+            <!-- Step 2: Video Upload -->
+            <section class="card" id="upload-section">
+                <h2 class="card-title">
+                    <span class="step-number">2</span>
+                    Upload Video
+                </h2>
+                <div class="upload-area" id="upload-area">
+                    <input type="file" id="video-input" accept=".mp4,.avi,.mov,.mkv,.webm,.m4v,.wmv,.flv" hidden>
+                    <div class="upload-content">
+                        <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                        <p class="upload-text">Drag & drop your video here</p>
+                        <p class="upload-hint">or click to browse</p>
+                        <p class="upload-formats">Supported: MP4, AVI, MOV, MKV, WebM, M4V</p>
+                    </div>
+                </div>
+                <div class="video-info" id="video-info" style="display: none;">
+                    <div class="video-preview">
+                        <video id="video-preview" controls></video>
+                    </div>
+                    <div class="video-details">
+                        <h4 id="video-name"></h4>
+                        <p><strong>Duration:</strong> <span id="video-duration"></span></p>
+                        <p><strong>Resolution:</strong> <span id="video-resolution"></span></p>
+                        <p><strong>Size:</strong> <span id="video-size"></span></p>
+                        <button class="btn btn-secondary" id="change-video-btn">Change Video</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Step 3: Analysis Options -->
+            <section class="card" id="options-section">
+                <h2 class="card-title">
+                    <span class="step-number">3</span>
+                    Analysis Options
+                </h2>
+
+                <div class="form-group">
+                    <label class="label">Video Type</label>
+                    <select id="video-type-select" class="select-field">
+                        <option value="">Loading video types...</option>
+                    </select>
+                    <p class="field-hint" id="video-type-description"></p>
+                </div>
+
+                <div class="form-group">
+                    <label class="label">
+                        Prompt
+                        <span class="label-hint">Edit to customize the analysis</span>
+                    </label>
+                    <textarea id="prompt-textarea" class="textarea-field prompt-textarea" rows="12" placeholder="Select a video type to load prompt..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="with-keyframes">
+                        <span class="checkbox-custom"></span>
+                        <span>Extract key frames with timestamps</span>
+                    </label>
+                </div>
+            </section>
+
+            <!-- Step 4: Analyze -->
+            <section class="card" id="analyze-section">
+                <button class="btn btn-primary btn-large" id="analyze-btn" disabled>
+                    <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                    </svg>
+                    <span>Start Analysis</span>
+                </button>
+            </section>
+
+            <!-- Progress -->
+            <section class="card" id="progress-section" style="display: none;">
+                <h2 class="card-title">Processing</h2>
+                <div class="progress-container">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progress-fill" style="width: 0%"></div>
+                    </div>
+                    <p class="progress-text" id="progress-text">Initializing...</p>
+                    <p class="progress-percent" id="progress-percent">0%</p>
+                </div>
+            </section>
+
+            <!-- Results -->
+            <section class="card" id="results-section" style="display: none;">
+                <h2 class="card-title">
+                    <svg class="title-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                    </svg>
+                    Analysis Results
+                </h2>
+                <div class="results-actions">
+                    <button class="btn btn-secondary" id="copy-results-btn">
+                        <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                        </svg>
+                        Copy
+                    </button>
+                    <button class="btn btn-secondary" id="download-results-btn">
+                        <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="7 10 12 15 17 10"></polyline>
+                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                        Download
+                    </button>
+                    <button class="btn btn-primary" id="new-analysis-btn">
+                        <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                        New Analysis
+                    </button>
+                </div>
+                <div class="results-content" id="results-content">
+                    <!-- Results will be rendered here -->
+                </div>
+            </section>
+
+            <!-- Error -->
+            <section class="card card-error" id="error-section" style="display: none;">
+                <h2 class="card-title">
+                    <svg class="title-icon error-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="15" y1="9" x2="9" y2="15"></line>
+                        <line x1="9" y1="9" x2="15" y2="15"></line>
+                    </svg>
+                    Error
+                </h2>
+                <p class="error-message" id="error-message"></p>
+                <button class="btn btn-primary" id="retry-btn">Try Again</button>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>Video Analyzer v1.0 | Powered by Google Gemini and OpenRouter</p>
+        </footer>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <script src="/static/js/marked.min.js"></script>
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

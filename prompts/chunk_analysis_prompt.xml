@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<prompt>
+    <type>General</type>
+    <task>Детально опиши, что происходит на видео (универсальный шаблон).</task>
+    <context>
+        <chunk_info>
+            <chunk_number>{chunk_number}</chunk_number>
+            <total_chunks>{total_chunks}</total_chunks>
+            <time_range>
+                <start_minutes>{start_time_minutes}</start_minutes>
+                <end_minutes>{end_time_minutes}</end_minutes>
+                <duration_minutes>{duration_minutes}</duration_minutes>
+            </time_range>
+        </chunk_info>
+    </context>
+    <focus>
+        <item>Сцены и действия</item>
+        <item>Люди, объекты, локации</item>
+        <item>Речь и ключевые тезисы (если различимы)</item>
+        <item>Текст на экране (OCR), элементы интерфейса и клики</item>
+    </focus>
+    <requirements>
+        <language>ОБЯЗАТЕЛЬНО отвечай на русском языке.</language>
+        <detail_level>Предоставь детальное описание происходящего.</detail_level>
+        <factuality>Не выдумывай. Явно помечай, если что-то неразборчиво/неизвестно.</factuality>
+        <timecodes>Обязательно выделяй ключевые кадры с точными таймкодами (чч:мм:сс).</timecodes>
+        <confidence>Для каждого ключевого кадра указывай уверенность: низкая/средняя/высокая.</confidence>
+    </requirements>
+    <output>
+        <section>Краткое резюме (3–6 предложений)</section>
+        <section>Таймлайн основных событий с таймкодами</section>
+        <section>Сущности и объекты (персоны, бренды, предметы)</section>
+        <section>Ключевые кадры: фиксируй только действительно необходимые для понимания моменты (новый раздел, важная сцена, критический UI/параметр, явное решение/цена/метрика/цитата).</section>
+        <section>Открытые вопросы и неопределенности</section>
+    </output>
+</prompt>

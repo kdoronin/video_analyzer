@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<prompt>
+    <type>Lecture</type>
+    <task>Проанализируй учебную лекцию/обучающий фрагмент этого кусочка видео.</task>
+    <context>
+        <chunk_info>
+            <chunk_number>{chunk_number}</chunk_number>
+            <total_chunks>{total_chunks}</total_chunks>
+            <time_range>
+                <start_minutes>{start_time_minutes}</start_minutes>
+                <end_minutes>{end_time_minutes}</end_minutes>
+                <duration_minutes>{duration_minutes}</duration_minutes>
+            </time_range>
+        </chunk_info>
+    </context>
+    <focus>
+        <item>Структура разделов и переходы между темами</item>
+        <item>Ключевые тезисы, определения, формулы/диаграммы</item>
+        <item>Текст на слайдах (OCR), примеры/демо/фрагменты кода</item>
+        <item>Итоги секций и задания для слушателей</item>
+    </focus>
+    <requirements>
+        <language>ОБЯЗАТЕЛЬНО отвечай на русском языке.</language>
+        <detail_level>Дай подробный конспект и структуру.</detail_level>
+        <factuality>Не выдумывай, помечай неизвестное явно.</factuality>
+        <timecodes>Выделяй ключевые кадры (слайды/формулы/итоги) с таймкодами чч:мм:сс.</timecodes>
+        <confidence>Для каждого ключевого кадра указывай уверенность.</confidence>
+    </requirements>
+    <output>
+        <section>Структура разделов (заголовки, краткое содержание)</section>
+        <section>Ключевые тезисы и определения (списком)</section>
+        <section>Глоссарий терминов (если встречаются)</section>
+        <section>Примеры/демо/фрагменты кода (если есть)</section>
+        <section>Вопросы/задания слушателям</section>
+        <section>Ключевые кадры: слайды/формулы/итоги, без которых понимание темы будет неполным.</section>
+    </output>
+</prompt>
+

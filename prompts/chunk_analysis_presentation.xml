@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<prompt>
+    <type>Presentation</type>
+    <task>Проанализируй презентацию/питч в этом кусочке видео.</task>
+    <context>
+        <chunk_info>
+            <chunk_number>{chunk_number}</chunk_number>
+            <total_chunks>{total_chunks}</total_chunks>
+            <time_range>
+                <start_minutes>{start_time_minutes}</start_minutes>
+                <end_minutes>{end_time_minutes}</end_minutes>
+                <duration_minutes>{duration_minutes}</duration_minutes>
+            </time_range>
+        </chunk_info>
+    </context>
+    <focus>
+        <item>Ценностное предложение (USP), доказательства (RTB)</item>
+        <item>Ключевые метрики/графики, цены/тарифы</item>
+        <item>Целевая аудитория и сценарии использования</item>
+        <item>Сравнение с конкурентами, roadmap/планы</item>
+    </focus>
+    <requirements>
+        <language>ОБЯЗАТЕЛЬНО отвечай на русском языке.</language>
+        <detail_level>Дай executive summary и опиши опорные слайды.</detail_level>
+        <factuality>Не выдумывай; текст слайдов выписывай максимально точно.</factuality>
+        <timecodes>Ключевые кадры: USP, метрики, цены, конкуренты, CTA — с таймкодами чч:мм:сс.</timecodes>
+        <confidence>Для каждого ключевого кадра указывай уверенность.</confidence>
+    </requirements>
+    <output>
+        <section>Executive summary</section>
+        <section>USP/RTB (что обещаем и чем доказываем)</section>
+        <section>Метрики и графики (со ссылками на таймкоды)</section>
+        <section>Аудитория и сценарии</section>
+        <section>Конкуренты/альтернативы и отличия</section>
+        <section>CTA и цены/пакеты</section>
+        <section>Ключевые кадры: USP, метрики, цены, конкуренты, CTA — опорные слайды.</section>
+    </output>
+</prompt>
+

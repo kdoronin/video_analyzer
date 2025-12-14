@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<prompt>
+    <type>Language Lesson</type>
+    <task>Проанализируй урок иностранного языка в этом кусочке видео. Создай полную транскрипцию с разбиением по спикерам и оцени качество урока.</task>
+    <context>
+        <chunk_info>
+            <chunk_number>{chunk_number}</chunk_number>
+            <total_chunks>{total_chunks}</total_chunks>
+            <time_range>
+                <start_minutes>{start_time_minutes}</start_minutes>
+                <end_minutes>{end_time_minutes}</end_minutes>
+                <duration_minutes>{duration_minutes}</duration_minutes>
+            </time_range>
+        </chunk_info>
+    </context>
+    <focus>
+        <item>Полная транскрипция всей речи с идентификацией спикеров (учитель/ученик/ученики)</item>
+        <item>Сохранение языка оригинала: каждое слово записывается на том языке, на котором оно произнесено</item>
+        <item>Визуальное описание происходящего на уроке (действия, материалы, взаимодействие)</item>
+        <item>Методика преподавания и педагогические приёмы</item>
+        <item>Качество онлайн-урока по стандартным критериям</item>
+    </focus>
+    <requirements>
+        <language>Метаописание и анализ — на русском языке. Транскрипция — на языке оригинала произнесённой речи.</language>
+        <transcription_rules>
+            <rule>Каждая реплика начинается с идентификатора спикера: [Учитель], [Ученик], [Ученик 1], [Ученик 2] и т.д.</rule>
+            <rule>Указывай таймкод начала реплики в формате [чч:мм:сс]</rule>
+            <rule>Если спикер переключается между языками (code-switching), записывай каждое слово на том языке, на котором оно произнесено</rule>
+            <rule>Помечай неразборчивые фрагменты как [неразборчиво] с указанием примерной длительности</rule>
+            <rule>Фиксируй значимые паузы, смех, жесты в квадратных скобках: [пауза], [смех], [показывает на экран]</rule>
+        </transcription_rules>
+        <detail_level>Максимально детальная транскрипция и подробное описание визуального контекста.</detail_level>
+        <factuality>Не выдумывай и не дополняй речь. Записывай только то, что реально произнесено.</factuality>
+        <timecodes>Таймкоды для каждой реплики и ключевых визуальных моментов.</timecodes>
+        <confidence>Указывай уверенность в распознавании речи: высокая/средняя/низкая.</confidence>
+    </requirements>
+    <output>
+        <section name="transcript">
+            <title>Полная транскрипция</title>
+            <description>Дословная запись всей речи с разбиением по спикерам, таймкодами и сохранением языка оригинала.</description>
+            <format>
+                [чч:мм:сс] [Спикер]: Текст реплики на языке оригинала.
+            </format>
+        </section>
+        <section name="visual_description">
+            <title>Описание видеоряда</title>
+            <description>Что происходит на экране: обстановка, используемые материалы, демонстрации, жесты, мимика, взаимодействие участников.</description>
+        </section>
+        <section name="lesson_structure">
+            <title>Структура урока</title>
+            <description>Этапы урока с таймкодами: приветствие, проверка домашнего задания, введение нового материала, практика, закрепление, прощание.</description>
+        </section>
+        <section name="teaching_methods">
+            <title>Методы преподавания</title>
+            <description>Какие педагогические приёмы использует учитель: объяснение, демонстрация, drilling, ролевые игры, коррекция ошибок, похвала и поощрение.</description>
+        </section>
+        <section name="quality_assessment">
+            <title>Оценка качества онлайн-урока</title>
+            <criteria>
+                <criterion name="technical_quality">Техническое качество: звук, видео, стабильность соединения</criterion>
+                <criterion name="teacher_presence">Присутствие учителя: зрительный контакт с камерой, энергичность, вовлечённость</criterion>
+                <criterion name="student_engagement">Вовлечённость ученика: активность, время говорения ученика vs учителя (Student Talking Time)</criterion>
+                <criterion name="error_correction">Работа с ошибками: как учитель исправляет ошибки, даёт ли возможность самокоррекции</criterion>
+                <criterion name="pace_and_timing">Темп и тайминг: соответствие темпа уровню ученика, паузы для осмысления</criterion>
+                <criterion name="materials_usage">Использование материалов: визуальные опоры, screen sharing, интерактивные элементы</criterion>
+                <criterion name="instructions_clarity">Ясность инструкций: понятны ли задания ученику</criterion>
+                <criterion name="lesson_goals">Цели урока: озвучены ли цели, достигнуты ли к концу фрагмента</criterion>
+            </criteria>
+        </section>
+        <section name="language_analysis">
+            <title>Языковой анализ</title>
+            <description>Какие языковые аспекты отрабатываются: грамматика, лексика, произношение, аудирование, говорение, чтение, письмо. Уровень сложности материала.</description>
+        </section>
+        <section name="keyframes">
+            <title>Ключевые кадры</title>
+            <description>Моменты, важные для оценки качества урока: примеры удачного/неудачного взаимодействия, интересные методические находки, проблемные места.</description>
+        </section>
+    </output>
+</prompt>

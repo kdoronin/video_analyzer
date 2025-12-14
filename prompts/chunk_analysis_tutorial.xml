@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<prompt>
+    <type>Tutorial</type>
+    <task>Проанализируй обучающий туториал/how‑to в этом кусочке видео.</task>
+    <context>
+        <chunk_info>
+            <chunk_number>{chunk_number}</chunk_number>
+            <total_chunks>{total_chunks}</total_chunks>
+            <time_range>
+                <start_minutes>{start_time_minutes}</start_minutes>
+                <end_minutes>{end_time_minutes}</end_minutes>
+                <duration_minutes>{duration_minutes}</duration_minutes>
+            </time_range>
+        </chunk_info>
+    </context>
+    <focus>
+        <item>Пошаговые действия (inputs → actions → expected outputs)</item>
+        <item>Инструменты/версии, параметры/настройки</item>
+        <item>Предупреждения, частые ошибки, различия по платформам</item>
+        <item>Демонстрации "до/после" и проверки результата</item>
+    </focus>
+    <requirements>
+        <language>ОБЯЗАТЕЛЬНО отвечай на русском языке.</language>
+        <detail_level>Дай точный чек‑лист шагов.</detail_level>
+        <factuality>Не выдумывай; параметры и команды фиксируй дословно.</factuality>
+        <timecodes>Ключевые кадры: важные настройки, команды и их успешный вывод, предупреждения — с таймкодами чч:мм:сс.</timecodes>
+        <confidence>Для каждого ключевого кадра указывай уверенность.</confidence>
+    </requirements>
+    <output>
+        <section>Prerequisites (версии, требования)</section>
+        <section>Пошаговая инструкция (с таймкодами)</section>
+        <section>Входы/выходы для шагов</section>
+        <section>Предупреждения и частые ошибки</section>
+        <section>Troubleshooting (если что-то пошло не так)</section>
+        <section>Ключевые кадры: важные настройки, команды с успешным выводом и предупреждения.</section>
+    </output>
+</prompt>
+

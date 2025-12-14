@@ -1,0 +1,222 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<prompt>
+    <type>Interview Evaluation</type>
+    <task>Проанализируй видеозапись собеседования и оцени кандидата по структурированной шкале критериев.</task>
+    <context>
+        <chunk_info>
+            <chunk_number>{chunk_number}</chunk_number>
+            <total_chunks>{total_chunks}</total_chunks>
+            <time_range>
+                <start_minutes>{start_time_minutes}</start_minutes>
+                <end_minutes>{end_time_minutes}</end_minutes>
+                <duration_minutes>{duration_minutes}</duration_minutes>
+            </time_range>
+        </chunk_info>
+    </context>
+
+    <evaluation_criteria>
+        <category name="technical_skills" weight="50%">
+            <description>Оценка профессиональных знаний и технических компетенций кандидата</description>
+
+            <criterion id="T1" name="Глубина технических знаний">
+                <description>Насколько глубоко кандидат понимает предметную область и технологии</description>
+                <scale>
+                    <score value="1">Поверхностные знания, не может объяснить базовые концепции</score>
+                    <score value="2">Базовые знания, понимает основы, но путается в деталях</score>
+                    <score value="3">Хорошие знания, уверенно объясняет концепции, допускает незначительные неточности</score>
+                    <score value="4">Отличные знания, глубокое понимание, может объяснить сложные аспекты</score>
+                    <score value="5">Экспертные знания, демонстрирует редкую глубину понимания и нюансов</score>
+                </scale>
+            </criterion>
+
+            <criterion id="T2" name="Решение задач (Problem Solving)">
+                <description>Способность анализировать проблемы и находить решения</description>
+                <scale>
+                    <score value="1">Не может структурировать подход к решению</score>
+                    <score value="2">Пытается решить, но нуждается в значительных подсказках</score>
+                    <score value="3">Системный подход, решает с минимальными подсказками</score>
+                    <score value="4">Эффективно решает, предлагает оптимизации</score>
+                    <score value="5">Элегантные решения, рассматривает edge-cases, предлагает альтернативы</score>
+                </scale>
+            </criterion>
+
+            <criterion id="T3" name="Практический опыт">
+                <description>Релевантный опыт работы и применение знаний на практике</description>
+                <scale>
+                    <score value="1">Нет практического опыта в обсуждаемых областях</score>
+                    <score value="2">Минимальный опыт, в основном теоретические знания</score>
+                    <score value="3">Есть релевантный опыт, может привести примеры из практики</score>
+                    <score value="4">Богатый опыт, уверенно обсуждает реальные кейсы</score>
+                    <score value="5">Экспертный опыт, демонстрирует успешные проекты и достижения</score>
+                </scale>
+            </criterion>
+
+            <criterion id="T4" name="Качество ответов на технические вопросы">
+                <description>Точность, полнота и структурированность технических ответов</description>
+                <scale>
+                    <score value="1">Ответы неточные или неполные</score>
+                    <score value="2">Частично правильные ответы, упускает важные детали</score>
+                    <score value="3">Правильные ответы, хорошая структура</score>
+                    <score value="4">Отличные ответы с примерами и обоснованием</score>
+                    <score value="5">Исчерпывающие ответы, демонстрирует экспертизу</score>
+                </scale>
+            </criterion>
+
+            <criterion id="T5" name="Способность к обучению">
+                <description>Готовность учиться новому и адаптироваться</description>
+                <scale>
+                    <score value="1">Сопротивление новому, закрытость к обучению</score>
+                    <score value="2">Пассивное отношение к обучению</score>
+                    <score value="3">Открыт к обучению, задает уточняющие вопросы</score>
+                    <score value="4">Активно интересуется новым, быстро схватывает</score>
+                    <score value="5">Демонстрирует постоянное самообучение и развитие</score>
+                </scale>
+            </criterion>
+        </category>
+
+        <category name="soft_skills" weight="50%">
+            <description>Оценка личностных качеств и межличностных навыков кандидата</description>
+
+            <criterion id="S1" name="Коммуникация">
+                <description>Ясность, структурированность и эффективность общения</description>
+                <scale>
+                    <score value="1">Неясное изложение мыслей, трудно понять</score>
+                    <score value="2">Понятно, но неструктурированно, много лишнего</score>
+                    <score value="3">Четкое изложение, логичная структура</score>
+                    <score value="4">Отличная коммуникация, адаптируется под собеседника</score>
+                    <score value="5">Превосходные коммуникативные навыки, убедителен и ясен</score>
+                </scale>
+            </criterion>
+
+            <criterion id="S2" name="Уверенность">
+                <description>Уверенность в себе и своих ответах (без высокомерия)</description>
+                <scale>
+                    <score value="1">Крайне неуверен, теряется при вопросах</score>
+                    <score value="2">Заметная неуверенность, колебания в ответах</score>
+                    <score value="3">Умеренная уверенность, признает незнание адекватно</score>
+                    <score value="4">Уверен, но не высокомерен, спокойно обсуждает</score>
+                    <score value="5">Высокая уверенность, харизматичен, располагает к себе</score>
+                </scale>
+            </criterion>
+
+            <criterion id="S3" name="Проактивность">
+                <description>Инициативность, задает вопросы, проявляет интерес</description>
+                <scale>
+                    <score value="1">Пассивен, только отвечает на вопросы</score>
+                    <score value="2">Минимальная инициатива</score>
+                    <score value="3">Задает уточняющие вопросы по существу</score>
+                    <score value="4">Активно интересуется, предлагает идеи</score>
+                    <score value="5">Высокая проактивность, ведет диалог, демонстрирует энтузиазм</score>
+                </scale>
+            </criterion>
+
+            <criterion id="S4" name="Работа в команде">
+                <description>Навыки командной работы и сотрудничества</description>
+                <scale>
+                    <score value="1">Признаки конфликтности или изоляции</score>
+                    <score value="2">Предпочитает работать один</score>
+                    <score value="3">Комфортно работает в команде</score>
+                    <score value="4">Отличный командный игрок, приводит примеры коллаборации</score>
+                    <score value="5">Лидер команды, помогает другим развиваться</score>
+                </scale>
+            </criterion>
+
+            <criterion id="S5" name="Стрессоустойчивость">
+                <description>Поведение под давлением, реакция на сложные вопросы</description>
+                <scale>
+                    <score value="1">Теряется при давлении, паникует</score>
+                    <score value="2">Заметный стресс, но справляется</score>
+                    <score value="3">Сохраняет спокойствие при умеренном давлении</score>
+                    <score value="4">Хорошо справляется со стрессом, сохраняет ясность мышления</score>
+                    <score value="5">Превосходно работает под давлением, не теряет хладнокровия</score>
+                </scale>
+            </criterion>
+
+            <criterion id="S6" name="Мотивация">
+                <description>Заинтересованность в позиции и компании</description>
+                <scale>
+                    <score value="1">Незаинтересован, пришел "просто посмотреть"</score>
+                    <score value="2">Слабая мотивация, нет конкретных причин интереса</score>
+                    <score value="3">Умеренный интерес, понимает суть позиции</score>
+                    <score value="4">Высокая мотивация, изучил компанию и роль</score>
+                    <score value="5">Страстно заинтересован, видит себя в компании надолго</score>
+                </scale>
+            </criterion>
+
+            <criterion id="S7" name="Эмпатия и эмоциональный интеллект">
+                <description>Понимание других, умение слушать</description>
+                <scale>
+                    <score value="1">Не слушает, перебивает, не учитывает собеседника</score>
+                    <score value="2">Слушает поверхностно</score>
+                    <score value="3">Внимательно слушает, адекватно реагирует</score>
+                    <score value="4">Хорошо считывает собеседника, адаптирует ответы</score>
+                    <score value="5">Высокий EQ, создает комфортную атмосферу</score>
+                </scale>
+            </criterion>
+        </category>
+    </evaluation_criteria>
+
+    <requirements>
+        <language>ОБЯЗАТЕЛЬНО отвечай на русском языке.</language>
+        <objectivity>Оценивай объективно, основываясь только на наблюдаемом поведении.</objectivity>
+        <evidence>Для каждой оценки приводи конкретные примеры из видео с таймкодами.</evidence>
+        <fairness>Избегай предвзятости; оценивай только профессиональные качества.</fairness>
+        <timecodes>Ключевые моменты: сильные/слабые ответы, примеры поведения — с таймкодами чч:мм:сс.</timecodes>
+    </requirements>
+
+    <output>
+        <section name="summary">Краткое резюме этого фрагмента собеседования</section>
+
+        <section name="technical_evaluation">
+            <title>Оценка технических навыков</title>
+            <format>
+                Для каждого критерия T1-T5:
+                - Оценка (1-5)
+                - Обоснование с примерами из видео
+                - Таймкоды ключевых моментов
+            </format>
+        </section>
+
+        <section name="soft_skills_evaluation">
+            <title>Оценка soft skills</title>
+            <format>
+                Для каждого критерия S1-S7:
+                - Оценка (1-5)
+                - Обоснование с примерами из видео
+                - Таймкоды ключевых моментов
+            </format>
+        </section>
+
+        <section name="key_moments">
+            <title>Ключевые моменты</title>
+            <subsection>Сильные стороны кандидата (с таймкодами)</subsection>
+            <subsection>Области для улучшения (с таймкодами)</subsection>
+            <subsection>Красные флаги (если есть, с таймкодами)</subsection>
+        </section>
+
+        <section name="scores_summary">
+            <title>Сводка оценок</title>
+            <format>
+                | Критерий | Оценка |
+                |----------|--------|
+                | T1-T5, S1-S7 | 1-5 |
+
+                Средняя оценка технических навыков: X.X/5
+                Средняя оценка soft skills: X.X/5
+                Общая оценка: X.X/5
+            </format>
+        </section>
+
+        <section name="recommendation">
+            <title>Предварительная рекомендация</title>
+            <options>
+                <option>Strong Hire - Сильный кандидат</option>
+                <option>Hire - Рекомендуется к найму</option>
+                <option>Lean Hire - Скорее да, есть сомнения</option>
+                <option>Lean No Hire - Скорее нет, есть потенциал</option>
+                <option>No Hire - Не рекомендуется</option>
+                <option>Strong No Hire - Категорически не рекомендуется</option>
+            </options>
+        </section>
+    </output>
+</prompt>

@@ -1,0 +1,227 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<prompt>
+    <type>Sound Design Prompt Generator</type>
+    <task>Проанализируй видео и создай профессиональный промпт для генерации AI-звукового сопровождения (музыка + звуковые эффекты), идеально подходящего к визуальному контенту.</task>
+    <context>
+        <chunk_info>
+            <chunk_number>{chunk_number}</chunk_number>
+            <total_chunks>{total_chunks}</total_chunks>
+            <time_range>
+                <start_minutes>{start_time_minutes}</start_minutes>
+                <end_minutes>{end_time_minutes}</end_minutes>
+                <duration_minutes>{duration_minutes}</duration_minutes>
+            </time_range>
+        </chunk_info>
+    </context>
+
+    <analysis_focus>
+        <visual_analysis>
+            <item>Тип контента: реклама, кино, документальное, игровой трейлер, презентация, музыкальный клип, анимация</item>
+            <item>Визуальный стиль: минималистичный, динамичный, эпический, интимный, футуристичный, ретро, нуар</item>
+            <item>Темп монтажа: быстрый/средний/медленный, частота смены кадров, ритм склеек</item>
+            <item>Цветовая палитра и настроение: теплые/холодные тона, яркость, контраст, насыщенность</item>
+            <item>Ключевые визуальные элементы: природа, город, люди, техника, абстракция, текст</item>
+            <item>Эпоха и сеттинг: современность, будущее, прошлое, фэнтези, sci-fi</item>
+        </visual_analysis>
+
+        <motion_analysis>
+            <item>Тип движения: плавное, резкое, статичное, хаотичное</item>
+            <item>Скорость: slow-motion, реальное время, ускоренное</item>
+            <item>Переходы: cut, fade, dissolve, wipe, morph</item>
+            <item>Камера: статика, панорама, tracking, drone, handheld</item>
+        </motion_analysis>
+
+        <existing_audio_analysis>
+            <item>Диалоги: есть/нет, громкость, важность для сюжета</item>
+            <item>Существующие звуки: ambient, foley, эффекты</item>
+            <item>Текущая музыка: жанр, темп, инструменты (если есть)</item>
+            <item>Тишина: где намеренные паузы, где нужно заполнить</item>
+        </existing_audio_analysis>
+
+        <emotional_analysis>
+            <item>Доминирующая эмоция: радость, грусть, напряжение, спокойствие, восторг, страх, надежда</item>
+            <item>Эмоциональная динамика: нарастание, спад, контрасты, плато</item>
+            <item>Целевое воздействие на зрителя: вдохновить, успокоить, взбудоражить, заинтриговать</item>
+        </emotional_analysis>
+
+        <narrative_analysis>
+            <item>Структура: завязка, развитие, кульминация, развязка</item>
+            <item>Ключевые сюжетные точки и их тайминг</item>
+            <item>Текст на экране (OCR) — для понимания контекста</item>
+            <item>Целевая аудитория и контекст использования</item>
+        </narrative_analysis>
+    </analysis_focus>
+
+    <music_parameters>
+        <genre_style>
+            <parameter name="primary_genre">Основной жанр: electronic, orchestral, ambient, rock, pop, hip-hop, jazz, classical, cinematic, lo-fi, synthwave, folk, world</parameter>
+            <parameter name="sub_genre">Поджанр/стиль: epic orchestral, chillhop, dark ambient, progressive house, neo-classical и т.д.</parameter>
+            <parameter name="era_reference">Эпоха звучания: современное, 80s, 90s, vintage, futuristic</parameter>
+            <parameter name="mood_tags">Теги настроения: uplifting, melancholic, tense, peaceful, energetic, mysterious, triumphant</parameter>
+        </genre_style>
+
+        <musical_elements>
+            <parameter name="tempo">BPM: точное значение или диапазон (60-70 медленный, 90-110 средний, 120-140 энергичный, 140+ быстрый)</parameter>
+            <parameter name="key">Тональность: мажор (светлое), минор (темное), рекомендуемая тональность</parameter>
+            <parameter name="time_signature">Размер: 4/4, 3/4, 6/8, нестандартный</parameter>
+            <parameter name="instruments">Инструменты: synths, strings, piano, guitar, drums, bass, brass, woodwinds, ethnic, electronic</parameter>
+            <parameter name="texture">Текстура: sparse/dense, layered, minimalist, complex</parameter>
+        </musical_elements>
+
+        <dynamics>
+            <parameter name="intensity_curve">Кривая интенсивности по времени видео</parameter>
+            <parameter name="builds">Нарастания (builds): где начинаются, пик</parameter>
+            <parameter name="drops">Сбросы (drops): где происходят, характер</parameter>
+            <parameter name="breakdowns">Брейкдауны: тихие секции, передышки</parameter>
+        </dynamics>
+
+        <production_style>
+            <parameter name="mix_character">Характер микса: clean, lo-fi, distorted, spacious, intimate</parameter>
+            <parameter name="reverb_space">Пространство: dry, room, hall, cathedral, infinite</parameter>
+            <parameter name="frequency_focus">Частотный фокус: bass-heavy, mid-focused, bright/airy, full-spectrum</parameter>
+        </production_style>
+    </music_parameters>
+
+    <sfx_parameters>
+        <sound_categories>
+            <category name="ambient">Атмосфера: природа, город, интерьер, космос, подводный мир</category>
+            <category name="foley">Фоли: шаги, ткань, предметы, движения тела</category>
+            <category name="mechanical">Механика: машины, двери, кнопки, механизмы</category>
+            <category name="impacts">Удары: whoosh, hit, boom, crash, punch</category>
+            <category name="risers">Райзеры: tension builders, reverse cymbals, synth swells</category>
+            <category name="transitions">Переходы: swoosh, woosh, glitch, tape stop</category>
+            <category name="ui_sounds">UI звуки: clicks, pops, notifications, confirms</category>
+            <category name="organic">Органические: дыхание, сердцебиение, шепот</category>
+            <category name="designed">Дизайнерские: sci-fi, magic, abstract, textural</category>
+        </sound_categories>
+
+        <sfx_timing>
+            <item>Синхронизация с визуальными акцентами</item>
+            <item>Предвосхищение действия (anticipation sounds)</item>
+            <item>Усиление переходов между сценами</item>
+            <item>Подчеркивание текста на экране</item>
+        </sfx_timing>
+
+        <sfx_style>
+            <parameter name="realism">Реалистичность: hyper-real, stylized, abstract, cartoon</parameter>
+            <parameter name="density">Плотность: minimal, moderate, dense, overwhelming</parameter>
+            <parameter name="processing">Обработка: clean, processed, distorted, granular</parameter>
+        </sfx_style>
+    </sfx_parameters>
+
+    <requirements>
+        <language>ОБЯЗАТЕЛЬНО отвечай на русском языке.</language>
+        <detail_level>Создай детальный, готовый к использованию промпт для AI-генерации звука.</detail_level>
+        <factuality>Основывайся только на визуальном контенте видео.</factuality>
+        <timecodes>Привязывай все рекомендации к конкретным таймкодам (чч:мм:сс).</timecodes>
+        <actionable>Промпт должен быть готов к копированию в Suno, Udio, ElevenLabs SFX, Stability Audio и другие AI-инструменты.</actionable>
+    </requirements>
+
+    <output>
+        <section name="video_summary">
+            <title>Анализ видео</title>
+            <content>
+                - Тип и жанр контента
+                - Визуальный стиль и настроение
+                - Целевая аудитория
+                - Общий хронометраж и структура
+                - Ключевые визуальные моменты
+            </content>
+        </section>
+
+        <section name="sound_concept">
+            <title>Концепция звукового дизайна</title>
+            <content>
+                - Общая звуковая эстетика
+                - Соотношение музыка/SFX
+                - Эмоциональная цель звукового ряда
+                - Референсы (фильмы, игры, другие видео с похожим звуком)
+            </content>
+        </section>
+
+        <section name="music_brief">
+            <title>Бриф на музыку</title>
+            <content>
+                - Жанр и стиль
+                - Темп (BPM)
+                - Тональность и настроение
+                - Ключевые инструменты
+                - Структура трека (intro, build, drop, outro)
+                - Динамика по таймлайну
+            </content>
+        </section>
+
+        <section name="sfx_map">
+            <title>Карта звуковых эффектов</title>
+            <format>
+                | Таймкод | Визуальное событие | Тип SFX | Описание звука | Приоритет |
+                |---------|-------------------|---------|----------------|-----------|
+            </format>
+        </section>
+
+        <section name="emotional_timeline">
+            <title>Эмоциональный таймлайн</title>
+            <content>
+                - [00:00-00:XX] Фаза — эмоция — интенсивность музыки — плотность SFX
+                - [00:XX-00:YY] ...
+            </content>
+        </section>
+
+        <section name="sync_points">
+            <title>Точки синхронизации</title>
+            <content>
+                Критические моменты для hit points:
+                - [таймкод] — визуальное событие — музыкальный/SFX акцент
+            </content>
+        </section>
+
+        <section name="ready_prompt_music">
+            <title>ГОТОВЫЙ ПРОМПТ ДЛЯ AI-МУЗЫКИ</title>
+            <format>
+                Полностью сформированный промпт для Suno, Udio или Stability Audio.
+
+                Формат:
+                [Жанр], [настроение], [темп BPM], [инструменты], [характер].
+                Детальное описание на английском языке для лучшей совместимости.
+
+                Пример структуры:
+                "Cinematic orchestral, epic and triumphant, 95 BPM, strings, brass,
+                timpani, building from quiet tension to powerful climax,
+                modern hybrid trailer music style"
+            </format>
+        </section>
+
+        <section name="ready_prompt_sfx">
+            <title>ГОТОВЫЙ ПРОМПТ ДЛЯ AI-SFX</title>
+            <format>
+                Список промптов для генерации отдельных звуковых эффектов.
+
+                Для каждого ключевого SFX:
+                - Таймкод использования
+                - Промпт на английском
+                - Длительность
+                - Рекомендуемый инструмент (ElevenLabs, Stability Audio, и др.)
+            </format>
+        </section>
+
+        <section name="mixing_notes">
+            <title>Заметки по сведению</title>
+            <content>
+                - Баланс музыка/SFX/диалоги
+                - Рекомендации по громкости (LUFS)
+                - Ducking и sidechain
+                - Пространственное размещение (stereo/surround)
+                - Частотное разделение элементов
+            </content>
+        </section>
+
+        <section name="alternative_directions">
+            <title>Альтернативные направления</title>
+            <content>
+                Если контент допускает разные интерпретации:
+                - Направление A: [жанр, настроение, характер]
+                - Направление B: [жанр, настроение, характер]
+            </content>
+        </section>
+    </output>
+</prompt>

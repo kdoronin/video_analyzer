@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<prompt>
+    <type>Marketing</type>
+    <task>Проанализируй маркетинговый ролик/обзор продукта в этом кусочке видео.</task>
+    <context>
+        <chunk_info>
+            <chunk_number>{chunk_number}</chunk_number>
+            <total_chunks>{total_chunks}</total_chunks>
+            <time_range>
+                <start_minutes>{start_time_minutes}</start_minutes>
+                <end_minutes>{end_time_minutes}</end_minutes>
+                <duration_minutes>{duration_minutes}</duration_minutes>
+            </time_range>
+        </chunk_info>
+    </context>
+    <focus>
+        <item>Фичи → выгоды, позиционирование и ключевые сообщения</item>
+        <item>Социальные доказательства (логотипы, отзывы, цифры)</item>
+        <item>Сравнения с конкурентами, офферы/цены/акции</item>
+        <item>Эмоциональный тон, визуальные сцены, CTA</item>
+    </focus>
+    <requirements>
+        <language>ОБЯЗАТЕЛЬНО отвечай на русском языке.</language>
+        <detail_level>Раскрой ценность продукта и сюжет.</detail_level>
+        <factuality>Не выдумывай; текст/цифры на экране выписывай точно.</factuality>
+        <timecodes>Ключевые кадры: демонстрации фич, соцдоказательства, цены/CTA — с таймкодами чч:мм:сс.</timecodes>
+        <confidence>Для каждого ключевого кадра указывай уверенность.</confidence>
+    </requirements>
+    <output>
+        <section>Features → Benefits (список соответствий)</section>
+        <section>Ключевые сообщения и позиционирование</section>
+        <section>Социальные доказательства (логотипы/кейсы/цифры)</section>
+        <section>Сравнения/альтернативы и уникальные отличия</section>
+        <section>Цены/оферы/CTA</section>
+        <section>Ключевые кадры: демонстрации фич, соцдоказательства, цены и явные CTA.</section>
+    </output>
+</prompt>
+

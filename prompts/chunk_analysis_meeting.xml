@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<prompt>
+    <type>Meeting</type>
+    <task>Проанализируй рабочую встречу/совещание в этом кусочке видео.</task>
+    <context>
+        <chunk_info>
+            <chunk_number>{chunk_number}</chunk_number>
+            <total_chunks>{total_chunks}</total_chunks>
+            <time_range>
+                <start_minutes>{start_time_minutes}</start_minutes>
+                <end_minutes>{end_time_minutes}</end_minutes>
+                <duration_minutes>{duration_minutes}</duration_minutes>
+            </time_range>
+        </chunk_info>
+    </context>
+    <focus>
+        <item>Решения (Decision) и договоренности</item>
+        <item>Action items: владелец (owner), срок (deadline), критерий готовности</item>
+        <item>Спорные вопросы, риски/блокеры</item>
+        <item>Демонстрации/борды/экраны с назначениями</item>
+    </focus>
+    <requirements>
+        <language>ОБЯЗАТЕЛЬНО отвечай на русском языке.</language>
+        <detail_level>Зафиксируй протокол (MoM) и действия.</detail_level>
+        <factuality>Не выдумывай; цитируй ключевые формулировки при возможности.</factuality>
+        <timecodes>Ключевые кадры: момент решения, список действий, голосование, демонстрация — с таймкодами чч:мм:сс.</timecodes>
+        <confidence>Для каждого ключевого кадра указывай уверенность.</confidence>
+    </requirements>
+    <output>
+        <section>Краткое резюме встречи</section>
+        <section>Decisions (перечень с ссылками на таймкоды)</section>
+        <section>Action items (owner, deadline, criteria)</section>
+        <section>Риски/блокеры и открытые вопросы</section>
+        <section>Ключевые кадры: момент принятия решения, список действий, голосование, демонстрация борды/назначений.</section>
+    </output>
+</prompt>
+

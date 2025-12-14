@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  video-analyzer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: video-analyzer-web
+    ports:
+      - "8000:8000"
+    environment:
+      # Analyzer settings
+      - ANALYZER_TYPE=${ANALYZER_TYPE:-gemini}
+
+      # Gemini settings (optional - can be set via web interface)
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - GEMINI_MODEL_NAME=${GEMINI_MODEL_NAME:-gemini-2.0-flash}
+
+      # OpenRouter settings (optional - can be set via web interface)
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+      - OPENROUTER_MODEL_NAME=${OPENROUTER_MODEL_NAME:-google/gemini-2.0-flash-exp:free}
+
+      # Processing settings
+      - CHUNK_DURATION_MINUTES=${CHUNK_DURATION_MINUTES:-10}
+      - MAX_UPLOAD_SIZE_MB=${MAX_UPLOAD_SIZE_MB:-500}
+
+      # Directories (inside container)
+      - UPLOAD_DIRECTORY=/app/uploads
+      - OUTPUT_DIRECTORY=/app/outputs
+      - TEMP_DIRECTORY=/app/temporary
+      - PROMPTS_DIRECTORY=/app/prompts
+    volumes:
+      # Persist uploads and outputs
+      - video_uploads:/app/uploads
+      - video_outputs:/app/outputs
+      # Mount custom prompts (optional)
+      # - ./custom_prompts:/app/prompts:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/config"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  video_uploads:
+    driver: local
+  video_outputs:
+    driver: local
