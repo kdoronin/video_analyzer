@@ -15,7 +15,12 @@ const state = {
     originalPrompt: '',  // Track original prompt to detect edits
     isCustomPrompt: false,
     jobId: null,
-    config: null
+    config: null,
+    analysisResult: '',  // Store raw markdown result
+    // Timer state
+    timerInterval: null,
+    timerStartTime: null,
+    elapsedTime: 0
 };
 
 // ============== DOM Elements ==============
@@ -67,10 +72,12 @@ const elements = {
     progressFill: document.getElementById('progress-fill'),
     progressText: document.getElementById('progress-text'),
     progressPercent: document.getElementById('progress-percent'),
+    progressTimer: document.getElementById('progress-timer'),
 
     // Results
     resultsSection: document.getElementById('results-section'),
     resultsContent: document.getElementById('results-content'),
+    resultsTime: document.getElementById('results-time'),
     copyResultsBtn: document.getElementById('copy-results-btn'),
     downloadResultsBtn: document.getElementById('download-results-btn'),
     newAnalysisBtn: document.getElementById('new-analysis-btn'),
@@ -325,6 +332,9 @@ async function startAnalysis() {
         elements.resultsSection.style.display = 'none';
         elements.errorSection.style.display = 'none';
 
+        // Start timer
+        startTimer();
+
         // Start polling
         pollJobStatus();
     } catch (error) {
@@ -473,9 +483,17 @@ function hideVideoInfo() {
 }
 
 function showResults(result) {
+    // Stop timer and show elapsed time
+    stopTimer();
+    const elapsedFormatted = formatTimer(state.elapsedTime);
+    elements.resultsTime.textContent = `(${elapsedFormatted})`;
+
     elements.progressSection.style.display = 'none';
     elements.resultsSection.style.display = 'block';
     elements.analyzeBtn.disabled = false;
+
+    // Store raw markdown for copy/download
+    state.analysisResult = result;
 
     // Render markdown
     if (typeof marked !== 'undefined') {
@@ -489,6 +507,9 @@ function showResults(result) {
 }
 
 function showError(error) {
+    // Stop timer on error
+    stopTimer();
+
     elements.progressSection.style.display = 'none';
     elements.errorSection.style.display = 'block';
     elements.errorMessage.textContent = error;
@@ -537,6 +558,35 @@ function formatDuration(seconds) {
         return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
     }
     return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+function formatTimer(ms) {
+    const totalSeconds = Math.floor(ms / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+}
+
+function startTimer() {
+    state.timerStartTime = Date.now();
+    state.elapsedTime = 0;
+    elements.progressTimer.textContent = '00:00';
+
+    state.timerInterval = setInterval(() => {
+        state.elapsedTime = Date.now() - state.timerStartTime;
+        elements.progressTimer.textContent = formatTimer(state.elapsedTime);
+    }, 1000);
+}
+
+function stopTimer() {
+    if (state.timerInterval) {
+        clearInterval(state.timerInterval);
+        state.timerInterval = null;
+    }
+    // Final update to get exact time
+    if (state.timerStartTime) {
+        state.elapsedTime = Date.now() - state.timerStartTime;
+    }
 }
 
 function formatFileSize(bytes) {
@@ -677,18 +727,16 @@ elements.promptTextarea.addEventListener('input', () => {
 // Analyze button
 elements.analyzeBtn.addEventListener('click', startAnalysis);
 
-// Copy results
+// Copy results (as markdown)
 elements.copyResultsBtn.addEventListener('click', () => {
-    const text = elements.resultsContent.innerText;
-    navigator.clipboard.writeText(text).then(() => {
-        showToast('Results copied to clipboard', 'success');
+    navigator.clipboard.writeText(state.analysisResult).then(() => {
+        showToast('Results copied as Markdown', 'success');
     });
 });
 
-// Download results
+// Download results (as markdown)
 elements.downloadResultsBtn.addEventListener('click', () => {
-    const text = elements.resultsContent.innerText;
-    const blob = new Blob([text], { type: 'text/markdown' });
+    const blob = new Blob([state.analysisResult], { type: 'text/markdown' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;

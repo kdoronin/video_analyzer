@@ -201,7 +201,10 @@
                         <div class="progress-fill" id="progress-fill" style="width: 0%"></div>
                     </div>
                     <p class="progress-text" id="progress-text">Initializing...</p>
-                    <p class="progress-percent" id="progress-percent">0%</p>
+                    <div class="progress-stats">
+                        <span class="progress-percent" id="progress-percent">0%</span>
+                        <span class="progress-timer" id="progress-timer">00:00</span>
+                    </div>
                 </div>
             </section>
 
@@ -213,6 +216,7 @@
                         <polyline points="22 4 12 14.01 9 11.01"></polyline>
                     </svg>
                     Analysis Results
+                    <span class="results-time" id="results-time"></span>
                 </h2>
                 <div class="results-actions">
                     <button class="btn btn-secondary" id="copy-results-btn">

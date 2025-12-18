@@ -556,13 +556,35 @@ body {
 
 .progress-text {
     color: var(--text-secondary);
-    margin-bottom: 0.25rem;
+    margin-bottom: 0.5rem;
+}
+
+.progress-stats {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1.5rem;
 }
 
 .progress-percent {
     font-size: 1.5rem;
     font-weight: 600;
     color: var(--primary-color);
+}
+
+.progress-timer {
+    font-size: 1.25rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+}
+
+.results-time {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    margin-left: auto;
+    font-variant-numeric: tabular-nums;
 }
 
 /* ============== Results ============== */
