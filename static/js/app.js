@@ -17,6 +17,7 @@ const state = {
     jobId: null,
     config: null,
     analysisResult: '',  // Store raw markdown result
+    extractedKeyframes: null,  // Store parsed keyframes from result
     // Timer state
     timerInterval: null,
     timerStartTime: null,
@@ -63,6 +64,8 @@ const elements = {
     videoTypeDescription: document.getElementById('video-type-description'),
     promptTextarea: document.getElementById('prompt-textarea'),
     withKeyframes: document.getElementById('with-keyframes'),
+    keyframesCriteriaContainer: document.getElementById('keyframes-criteria-container'),
+    keyframesCriteriaTextarea: document.getElementById('keyframes-criteria-textarea'),
 
     // Analyze
     analyzeBtn: document.getElementById('analyze-btn'),
@@ -80,6 +83,7 @@ const elements = {
     resultsTime: document.getElementById('results-time'),
     copyResultsBtn: document.getElementById('copy-results-btn'),
     downloadResultsBtn: document.getElementById('download-results-btn'),
+    downloadKeyframesBtn: document.getElementById('download-keyframes-btn'),
     newAnalysisBtn: document.getElementById('new-analysis-btn'),
 
     // Error
@@ -197,8 +201,8 @@ async function fetchModels(provider) {
 
 async function loadPrompt(videoType) {
     try {
-        const withKeyframes = elements.withKeyframes.checked;
-        const response = await fetch(`/api/prompt/${videoType}?with_keyframes=${withKeyframes}`);
+        // Load prompt without keyframes - keyframes criteria are shown in separate textarea
+        const response = await fetch(`/api/prompt/${videoType}`);
         const data = await response.json();
 
         state.currentPrompt = data.prompt;
@@ -306,6 +310,14 @@ async function startAnalysis() {
         formData.append('provider', state.provider);
         formData.append('model', state.model);
         formData.append('with_keyframes', elements.withKeyframes.checked);
+
+        // Get custom keyframes criteria if keyframes are enabled
+        if (elements.withKeyframes.checked && elements.keyframesCriteriaTextarea) {
+            const keyframesCriteria = elements.keyframesCriteriaTextarea.value.trim();
+            if (keyframesCriteria) {
+                formData.append('custom_keyframes_criteria', keyframesCriteria);
+            }
+        }
 
         // Get prompt from textarea (either original or edited)
         const currentPrompt = elements.promptTextarea.value.trim();
@@ -482,6 +494,88 @@ function hideVideoInfo() {
     updateAnalyzeButton();
 }
 
+/**
+ * Parse keyframes JSON from analysis result.
+ * Looks for JSON block with key_frames array.
+ */
+function parseKeyframesFromResult(result) {
+    try {
+        // Try to find JSON block in the result
+        // Look for ```json ... ``` or just { "key_frames": ... }
+        const jsonMatch = result.match(/```json\s*([\s\S]*?)\s*```/);
+        let jsonStr = null;
+
+        if (jsonMatch) {
+            jsonStr = jsonMatch[1];
+        } else {
+            // Try to find raw JSON object with key_frames
+            const rawMatch = result.match(/\{\s*"key_frames"\s*:\s*\[[\s\S]*?\]\s*\}/);
+            if (rawMatch) {
+                jsonStr = rawMatch[0];
+            }
+        }
+
+        if (jsonStr) {
+            const parsed = JSON.parse(jsonStr);
+            if (parsed.key_frames && Array.isArray(parsed.key_frames) && parsed.key_frames.length > 0) {
+                return parsed.key_frames;
+            }
+        }
+    } catch (error) {
+        console.error('Failed to parse keyframes from result:', error);
+    }
+    return null;
+}
+
+/**
+ * Download keyframes as ZIP archive.
+ */
+async function downloadKeyframes() {
+    if (!state.extractedKeyframes || !state.uploadedFileInfo) {
+        showToast('No keyframes available', 'error');
+        return;
+    }
+
+    const btn = elements.downloadKeyframesBtn;
+    btn.querySelector('.btn-text').style.display = 'none';
+    btn.querySelector('.btn-loading').style.display = 'inline-flex';
+    btn.disabled = true;
+
+    try {
+        const response = await fetch('/api/extract-keyframes', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                filename: state.uploadedFileInfo.filename,
+                keyframes: state.extractedKeyframes
+            })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Failed to extract keyframes');
+        }
+
+        // Download the ZIP file
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${state.uploadedFileInfo.filename.replace(/\.[^/.]+$/, '')}_keyframes.zip`;
+        a.click();
+        URL.revokeObjectURL(url);
+
+        showToast(`Downloaded ${state.extractedKeyframes.length} keyframes`, 'success');
+    } catch (error) {
+        console.error('Failed to download keyframes:', error);
+        showToast(error.message || 'Failed to download keyframes', 'error');
+    } finally {
+        btn.querySelector('.btn-text').style.display = 'inline';
+        btn.querySelector('.btn-loading').style.display = 'none';
+        btn.disabled = false;
+    }
+}
+
 function showResults(result) {
     // Stop timer and show elapsed time
     stopTimer();
@@ -494,6 +588,19 @@ function showResults(result) {
 
     // Store raw markdown for copy/download
     state.analysisResult = result;
+
+    // Try to parse keyframes from result
+    state.extractedKeyframes = parseKeyframesFromResult(result);
+
+    // Show/hide download keyframes button
+    if (state.extractedKeyframes && state.extractedKeyframes.length > 0) {
+        elements.downloadKeyframesBtn.style.display = 'inline-flex';
+        // Update button text to show count
+        const btnText = elements.downloadKeyframesBtn.querySelector('.btn-text');
+        btnText.textContent = `Download Keyframes (${state.extractedKeyframes.length})`;
+    } else {
+        elements.downloadKeyframesBtn.style.display = 'none';
+    }
 
     // Render markdown
     if (typeof marked !== 'undefined') {
@@ -544,7 +651,9 @@ function resetAnalysis() {
     elements.progressSection.style.display = 'none';
     elements.resultsSection.style.display = 'none';
     elements.errorSection.style.display = 'none';
+    elements.downloadKeyframesBtn.style.display = 'none';
     state.jobId = null;
+    state.extractedKeyframes = null;
 }
 
 // ============== Utility Functions ==============
@@ -677,9 +786,27 @@ elements.videoTypeSelect.addEventListener('change', (e) => {
 });
 
 // Keyframes toggle
-elements.withKeyframes.addEventListener('change', () => {
-    if (state.videoType && state.videoType !== 'custom') {
-        loadPrompt(state.videoType);
+elements.withKeyframes.addEventListener('change', async () => {
+    const isChecked = elements.withKeyframes.checked;
+
+    // Show/hide keyframes criteria textarea
+    if (elements.keyframesCriteriaContainer) {
+        elements.keyframesCriteriaContainer.style.display = isChecked ? 'block' : 'none';
+    }
+
+    // Load default criteria if textarea is empty and checkbox is checked
+    if (isChecked && elements.keyframesCriteriaTextarea) {
+        if (!elements.keyframesCriteriaTextarea.value.trim()) {
+            try {
+                const response = await fetch('/api/keyframes-criteria-default');
+                const data = await response.json();
+                if (data.criteria) {
+                    elements.keyframesCriteriaTextarea.value = data.criteria;
+                }
+            } catch (error) {
+                console.error('Failed to load keyframes criteria:', error);
+            }
+        }
     }
 });
 
@@ -744,6 +871,9 @@ elements.downloadResultsBtn.addEventListener('click', () => {
     a.click();
     URL.revokeObjectURL(url);
 });
+
+// Download keyframes
+elements.downloadKeyframesBtn.addEventListener('click', downloadKeyframes);
 
 // New analysis
 elements.newAnalysisBtn.addEventListener('click', () => {

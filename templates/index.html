@@ -181,6 +181,15 @@
                         <span>Extract key frames with timestamps</span>
                     </label>
                 </div>
+
+                <div class="form-group keyframes-criteria-container" id="keyframes-criteria-container" style="display: none;">
+                    <label class="label">
+                        Key Frames Criteria
+                        <span class="label-hint">Describe what counts as a key frame for this video</span>
+                    </label>
+                    <textarea id="keyframes-criteria-textarea" class="textarea-field" rows="10" placeholder="Loading default criteria..."></textarea>
+                    <p class="field-hint">The JSON output format is fixed and will be added automatically.</p>
+                </div>
             </section>
 
             <!-- Step 4: Analyze -->
@@ -233,6 +242,19 @@
                             <line x1="12" y1="15" x2="12" y2="3"></line>
                         </svg>
                         Download
+                    </button>
+                    <button class="btn btn-secondary" id="download-keyframes-btn" style="display: none;">
+                        <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                            <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                            <polyline points="21 15 16 10 5 21"></polyline>
+                        </svg>
+                        <span class="btn-text">Download Keyframes</span>
+                        <span class="btn-loading" style="display: none;">
+                            <svg class="spinner" viewBox="0 0 24 24">
+                                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" fill="none" stroke-dasharray="31.4 31.4" stroke-linecap="round"></circle>
+                            </svg>
+                        </span>
                     </button>
                     <button class="btn btn-primary" id="new-analysis-btn">
                         <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

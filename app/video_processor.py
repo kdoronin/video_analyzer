@@ -5,6 +5,7 @@ Handles video chunking and metadata extraction.
 import os
 import subprocess
 import json
+import zipfile
 from typing import List, Dict, Optional
 from pathlib import Path
 
@@ -158,6 +159,79 @@ class VideoProcessor:
             return True
         except subprocess.CalledProcessError:
             return False
+
+    def extract_keyframes_to_zip(
+        self,
+        video_path: str,
+        keyframes: List[Dict],
+        output_zip_path: str,
+        job_id: str
+    ) -> Dict:
+        """
+        Extract multiple keyframes and pack them into a ZIP archive.
+
+        Args:
+            video_path: Path to the video file
+            keyframes: List of dicts with 'timecode', 'title', 'frame_description'
+            output_zip_path: Path for the output ZIP file
+            job_id: Job ID for temporary directory
+
+        Returns:
+            Dict with extraction results
+        """
+        job_temp_dir = os.path.join(self.temp_dir, f"{job_id}_keyframes")
+        os.makedirs(job_temp_dir, exist_ok=True)
+
+        extracted = []
+        failed = []
+
+        try:
+            for i, kf in enumerate(keyframes):
+                timecode = kf.get("timecode", "00:00:00")
+                title = kf.get("title", f"frame_{i+1}")
+
+                # Sanitize title for filename
+                safe_title = "".join(c if c.isalnum() or c in "- _" else "_" for c in title)
+                safe_title = safe_title[:50]  # Limit length
+
+                # Create filename: 001_00-00-00_title.jpg
+                timecode_safe = timecode.replace(":", "-")
+                frame_filename = f"{i+1:03d}_{timecode_safe}_{safe_title}.jpg"
+                frame_path = os.path.join(job_temp_dir, frame_filename)
+
+                if self.extract_frame(video_path, timecode, frame_path):
+                    extracted.append({
+                        "filename": frame_filename,
+                        "timecode": timecode,
+                        "title": title
+                    })
+                else:
+                    failed.append({
+                        "timecode": timecode,
+                        "title": title,
+                        "error": "Failed to extract frame"
+                    })
+
+            # Create ZIP archive
+            with zipfile.ZipFile(output_zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
+                for item in extracted:
+                    frame_path = os.path.join(job_temp_dir, item["filename"])
+                    zf.write(frame_path, item["filename"])
+
+            return {
+                "success": True,
+                "zip_path": output_zip_path,
+                "extracted_count": len(extracted),
+                "failed_count": len(failed),
+                "extracted": extracted,
+                "failed": failed
+            }
+
+        finally:
+            # Cleanup temp frames
+            import shutil
+            if os.path.exists(job_temp_dir):
+                shutil.rmtree(job_temp_dir)
 
     def cleanup_job(self, job_id: str):
         """Clean up temporary files for a job."""

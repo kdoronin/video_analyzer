@@ -79,20 +79,71 @@ class PromptManager:
             })
         return result
 
-    def load_prompt(self, video_type: str, with_keyframes: bool = False) -> str:
+    def get_keyframes_criteria_default(self) -> str:
+        """Get default keyframes criteria description (editable by user)."""
+        cache_key = "keyframes_criteria_default"
+
+        if cache_key in self._cache:
+            return self._cache[cache_key]
+
+        criteria_path = os.path.join(self.prompts_dir, "keyframes_criteria_default.xml")
+
+        if not os.path.exists(criteria_path):
+            return ""
+
+        with open(criteria_path, "r", encoding="utf-8") as f:
+            criteria = f.read()
+
+        self._cache[cache_key] = criteria
+        return criteria
+
+    def get_keyframes_format(self) -> str:
+        """Get keyframes JSON format specification (fixed, not editable)."""
+        cache_key = "keyframes_format"
+
+        if cache_key in self._cache:
+            return self._cache[cache_key]
+
+        format_path = os.path.join(self.prompts_dir, "keyframes_format.xml")
+
+        if not os.path.exists(format_path):
+            return ""
+
+        with open(format_path, "r", encoding="utf-8") as f:
+            format_spec = f.read()
+
+        self._cache[cache_key] = format_spec
+        return format_spec
+
+    def load_prompt(
+        self,
+        video_type: str,
+        with_keyframes: bool = False,
+        custom_keyframes_criteria: Optional[str] = None
+    ) -> str:
         """
         Load prompt template for specified video type.
         Optionally append keyframes extraction instructions.
+
+        Args:
+            video_type: Type of video analysis
+            with_keyframes: Whether to include keyframes instructions
+            custom_keyframes_criteria: Custom keyframes criteria (if None, uses default)
         """
         if video_type not in VIDEO_TYPES:
             raise ValueError(f"Unknown video type: {video_type}")
 
         type_info = VIDEO_TYPES[video_type]
         prompt_file = type_info["prompt_file"]
-        cache_key = f"{prompt_file}_{with_keyframes}"
 
-        if cache_key in self._cache:
-            return self._cache[cache_key]
+        # Don't cache when using custom keyframes criteria
+        if custom_keyframes_criteria is not None:
+            use_cache = False
+        else:
+            use_cache = True
+            cache_key = f"{prompt_file}_{with_keyframes}"
+            if cache_key in self._cache:
+                return self._cache[cache_key]
 
         prompt_path = os.path.join(self.prompts_dir, prompt_file)
 
@@ -102,14 +153,20 @@ class PromptManager:
         with open(prompt_path, "r", encoding="utf-8") as f:
             prompt = f.read()
 
-        # Append keyframes postfix if requested
+        # Append keyframes criteria if requested (without format - format is added separately)
         if with_keyframes:
-            keyframes_path = os.path.join(self.prompts_dir, "common_keyframes_postfix.xml")
-            if os.path.exists(keyframes_path):
-                with open(keyframes_path, "r", encoding="utf-8") as f:
-                    prompt += "\n\n" + f.read()
+            # Use custom criteria or default
+            if custom_keyframes_criteria is not None:
+                criteria = custom_keyframes_criteria
+            else:
+                criteria = self.get_keyframes_criteria_default()
 
-        self._cache[cache_key] = prompt
+            if criteria:
+                prompt += "\n\n" + criteria
+
+        if use_cache:
+            self._cache[cache_key] = prompt
+
         return prompt
 
     def load_combine_prompt(self) -> str:

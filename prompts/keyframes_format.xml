@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<keyframes_format>
+    <key_frames_json_format><![CDATA[
+{
+  "key_frames": [
+    {
+      "timecode": "hh:mm:ss",
+      "title": "Short event title",
+      "frame_description": "What is visible / who / where / action"
+    }
+  ]
+}
+    ]]></key_frames_json_format>
+</keyframes_format>

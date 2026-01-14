@@ -13,7 +13,7 @@ from fastapi import FastAPI, UploadFile, File, Form, HTTPException, BackgroundTa
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.requests import Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 from pydantic import BaseModel
 
 from app.config import config_manager
@@ -56,6 +56,17 @@ class AnalysisRequest(BaseModel):
     model: str
     custom_prompt: Optional[str] = None
     with_keyframes: bool = False
+
+
+class KeyframeItem(BaseModel):
+    timecode: str
+    title: str
+    frame_description: Optional[str] = None
+
+
+class ExtractKeyframesRequest(BaseModel):
+    filename: str
+    keyframes: List[KeyframeItem]
 
 
 class JobStatus(BaseModel):
@@ -155,10 +166,12 @@ async def get_video_types():
 
 
 @app.get("/api/prompt/{video_type}")
-async def get_prompt(video_type: str, with_keyframes: bool = False):
-    """Get prompt template for a video type."""
+async def get_prompt(video_type: str):
+    """Get prompt template for a video type (without keyframes - they are shown separately)."""
     try:
-        prompt = prompt_manager.load_prompt(video_type, with_keyframes)
+        # Always load without keyframes for UI display
+        # Keyframes criteria are shown in a separate textarea
+        prompt = prompt_manager.load_prompt(video_type, with_keyframes=False)
         return {
             "video_type": video_type,
             "prompt": prompt,
@@ -168,6 +181,13 @@ async def get_prompt(video_type: str, with_keyframes: bool = False):
         raise HTTPException(status_code=400, detail=str(e))
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
+
+
+@app.get("/api/keyframes-criteria-default")
+async def get_keyframes_criteria_default():
+    """Get default keyframes criteria description (editable by user)."""
+    criteria = prompt_manager.get_keyframes_criteria_default()
+    return {"criteria": criteria}
 
 
 @app.get("/api/models/{provider}")
@@ -261,7 +281,8 @@ async def start_analysis(
     provider: str = Form(...),
     model: str = Form(...),
     custom_prompt: Optional[str] = Form(None),
-    with_keyframes: bool = Form(False)
+    with_keyframes: bool = Form(False),
+    custom_keyframes_criteria: Optional[str] = Form(None)
 ):
     """Start video analysis job."""
     # Validate inputs
@@ -299,7 +320,8 @@ async def start_analysis(
         provider,
         model,
         custom_prompt,
-        with_keyframes
+        with_keyframes,
+        custom_keyframes_criteria
     )
 
     return {"job_id": job_id, "status": "pending"}
@@ -322,6 +344,59 @@ async def get_job_status(job_id: str):
     )
 
 
+@app.post("/api/extract-keyframes")
+async def extract_keyframes(request: ExtractKeyframesRequest):
+    """Extract keyframes from video and return ZIP archive."""
+    # Validate video file exists
+    file_path = BASE_DIR / "uploads" / request.filename
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Video file not found")
+
+    if not request.keyframes:
+        raise HTTPException(status_code=400, detail="No keyframes provided")
+
+    # Create unique job id for this extraction
+    extraction_id = str(uuid.uuid4())[:8]
+
+    # Prepare output path
+    video_name = Path(request.filename).stem
+    output_dir = BASE_DIR / "outputs" / video_name
+    os.makedirs(output_dir, exist_ok=True)
+
+    zip_filename = f"{video_name}_keyframes_{extraction_id}.zip"
+    zip_path = output_dir / zip_filename
+
+    try:
+        processor = VideoProcessor(temp_dir=str(BASE_DIR / "temporary"))
+
+        # Convert pydantic models to dicts
+        keyframes_list = [kf.model_dump() for kf in request.keyframes]
+
+        result = processor.extract_keyframes_to_zip(
+            video_path=str(file_path),
+            keyframes=keyframes_list,
+            output_zip_path=str(zip_path),
+            job_id=extraction_id
+        )
+
+        if not result["success"] or result["extracted_count"] == 0:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to extract keyframes. Extracted: {result['extracted_count']}, Failed: {result['failed_count']}"
+            )
+
+        return FileResponse(
+            path=str(zip_path),
+            filename=zip_filename,
+            media_type="application/zip"
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to extract keyframes: {str(e)}")
+
+
 # ============== Background Processing ==============
 
 async def process_video_job(
@@ -331,7 +406,8 @@ async def process_video_job(
     provider: str,
     model: str,
     custom_prompt: Optional[str],
-    with_keyframes: bool
+    with_keyframes: bool,
+    custom_keyframes_criteria: Optional[str] = None
 ):
     """Process video analysis in background."""
     try:
@@ -343,7 +419,18 @@ async def process_video_job(
         if custom_prompt and custom_prompt.strip():
             prompt = custom_prompt
         else:
-            prompt = prompt_manager.load_prompt(video_type, with_keyframes)
+            # Pass custom keyframes criteria if provided
+            prompt = prompt_manager.load_prompt(
+                video_type,
+                with_keyframes,
+                custom_keyframes_criteria if custom_keyframes_criteria and custom_keyframes_criteria.strip() else None
+            )
+
+        # Always append fixed keyframes JSON format if keyframes are enabled
+        if with_keyframes:
+            keyframes_format = prompt_manager.get_keyframes_format()
+            if keyframes_format:
+                prompt += "\n\n" + keyframes_format
 
         jobs[job_id]["current_step"] = "Analyzing video duration..."
         jobs[job_id]["progress"] = 10
