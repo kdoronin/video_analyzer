@@ -1,10 +1,29 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <keyframes_format>
+    <timecode_format_rules>
+        CRITICAL: Timecode format is strictly HH:MM:SS (hours:minutes:seconds).
+        - HH = hours (00-23)
+        - MM = minutes (00-59)
+        - SS = seconds (00-59)
+
+        Examples:
+        - 5 seconds into video → "00:00:05"
+        - 1 minute 30 seconds → "00:01:30"
+        - 2 minutes 42 seconds → "00:02:42"
+        - 15 minutes 8 seconds → "00:15:08"
+        - 1 hour 5 minutes 20 seconds → "01:05:20"
+
+        WRONG formats (DO NOT USE):
+        - "00:05:00" for 5 seconds (this means 5 MINUTES!)
+        - "01:30:00" for 1min 30sec (this means 1 HOUR 30 MINUTES!)
+        - "5" or "1:30" (missing leading zeros)
+    </timecode_format_rules>
+
     <key_frames_json_format><![CDATA[
 {
   "key_frames": [
     {
-      "timecode": "hh:mm:ss",
+      "timecode": "00:01:30",
       "title": "Short event title",
       "frame_description": "What is visible / who / where / action"
     }
