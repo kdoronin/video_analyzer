@@ -20,7 +20,7 @@ class Settings(BaseModel):
     # Google Cloud / Gemini settings
     google_cloud_project_id: Optional[str] = None
     vertex_ai_location: str = "global"
-    gemini_model_name: str = "gemini-2.0-flash"
+    gemini_model_name: str = "gemini-2.5-flash"
     gemini_api_key: Optional[str] = None  # For direct Gemini API (not Vertex AI)
 
     # OpenRouter settings
@@ -30,6 +30,10 @@ class Settings(BaseModel):
     # Processing settings
     chunk_duration_minutes: int = 10
     max_upload_size_mb: int = 500
+    chunk_split_mode: str = "fixed"  # 'fixed' or 'silence_aware'
+    silence_window_seconds: int = 120
+    silence_min_duration_seconds: float = 3.0
+    silence_noise_db: float = -35.0
 
     # Paths
     upload_directory: str = "uploads"
@@ -54,12 +58,16 @@ class ConfigManager:
             analyzer_type=os.getenv("ANALYZER_TYPE", "gemini"),
             google_cloud_project_id=os.getenv("GOOGLE_CLOUD_PROJECT_ID"),
             vertex_ai_location=os.getenv("VERTEX_AI_LOCATION", "global"),
-            gemini_model_name=os.getenv("GEMINI_MODEL_NAME", "gemini-2.0-flash"),
+            gemini_model_name=os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-flash"),
             gemini_api_key=os.getenv("GEMINI_API_KEY"),
             openrouter_api_key=os.getenv("OPENROUTER_API_KEY"),
             openrouter_model_name=os.getenv("OPENROUTER_MODEL_NAME", "google/gemini-2.0-flash-exp:free"),
             chunk_duration_minutes=int(os.getenv("CHUNK_DURATION_MINUTES", "10")),
             max_upload_size_mb=int(os.getenv("MAX_UPLOAD_SIZE_MB", "500")),
+            chunk_split_mode=os.getenv("CHUNK_SPLIT_MODE", "fixed"),
+            silence_window_seconds=int(os.getenv("SILENCE_WINDOW_SECONDS", "120")),
+            silence_min_duration_seconds=float(os.getenv("SILENCE_MIN_DURATION_SECONDS", "3.0")),
+            silence_noise_db=float(os.getenv("SILENCE_NOISE_DB", "-35.0")),
             upload_directory=os.getenv("UPLOAD_DIRECTORY", "uploads"),
             output_directory=os.getenv("OUTPUT_DIRECTORY", "outputs"),
             temp_directory=os.getenv("TEMP_DIRECTORY", "temporary"),

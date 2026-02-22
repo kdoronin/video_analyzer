@@ -19,18 +19,30 @@ from app.config import config_manager
 class GeminiAnalyzer(BaseAnalyzer):
     """Video analyzer using Google Gemini API."""
 
+    # Models known to be unavailable/deprecated for new users.
+    DEPRECATED_MODEL_PREFIXES = (
+        "gemini-2.0-flash",
+        "gemini-2.0-flash-lite",
+    )
+
     # Known Gemini models that support video
     DEFAULT_MODELS = [
-        {"id": "gemini-2.0-flash", "name": "Gemini 2.0 Flash", "description": "Fast, efficient model"},
-        {"id": "gemini-2.0-flash-lite", "name": "Gemini 2.0 Flash Lite", "description": "Lightweight version"},
+        {"id": "gemini-2.5-flash", "name": "Gemini 2.5 Flash", "description": "Current stable fast model"},
+        {"id": "gemini-2.5-flash-lite", "name": "Gemini 2.5 Flash-Lite", "description": "Lower-cost, faster variant"},
         {"id": "gemini-1.5-flash", "name": "Gemini 1.5 Flash", "description": "Previous generation fast model"},
         {"id": "gemini-1.5-pro", "name": "Gemini 1.5 Pro", "description": "Previous generation pro model"},
     ]
 
-    def __init__(self, model_name: str = "gemini-2.0-flash", api_key: Optional[str] = None):
+    def __init__(self, model_name: str = "gemini-2.5-flash", api_key: Optional[str] = None):
         super().__init__(model_name, api_key)
         self._client = None
         self._model = None
+
+    @classmethod
+    def _is_deprecated_model(cls, model_id: str) -> bool:
+        """Return True if model should be hidden from selectable list."""
+        normalized = (model_id or "").strip().lower()
+        return any(normalized.startswith(prefix) for prefix in cls.DEPRECATED_MODEL_PREFIXES)
 
     def _get_client(self):
         """Get or create Gemini client."""
@@ -148,6 +160,10 @@ class GeminiAnalyzer(BaseAnalyzer):
 
                 # Only include gemini models
                 if not model_id.startswith("gemini"):
+                    continue
+
+                # Exclude deprecated/unavailable models
+                if self._is_deprecated_model(model_id):
                     continue
 
                 # Check if model supports video input

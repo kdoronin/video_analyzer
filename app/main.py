@@ -116,6 +116,10 @@ async def get_config():
         "default_openrouter_model": settings.openrouter_model_name,
         "max_upload_size_mb": settings.max_upload_size_mb,
         "chunk_duration_minutes": settings.chunk_duration_minutes,
+        "chunk_split_mode": settings.chunk_split_mode,
+        "silence_window_seconds": settings.silence_window_seconds,
+        "silence_min_duration_seconds": settings.silence_min_duration_seconds,
+        "silence_noise_db": settings.silence_noise_db,
     }
 
 

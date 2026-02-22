@@ -1,208 +1,284 @@
 # Video Analyzer Web
 
-AI-powered video analysis with Google Gemini and OpenRouter. Analyze videos using various specialized prompts for different content types.
+AI-powered video analysis with Google Gemini and OpenRouter.
+
+The app lets you upload a video, run chunked multimodal analysis, optionally extract key frames, and generate model-specific prompt templates from a short natural-language description.
 
 ## Features
 
-- **Dual Provider Support**: Choose between Google Gemini (direct API) or OpenRouter (multiple models)
-- **Dynamic Model Selection**: Fetches available models from providers in real-time
-- **Web Interface**: Modern, responsive UI for easy video analysis
-- **9 Specialized Prompts**: Different analysis types for various video content
-- **Runtime API Key Configuration**: Enter API keys via web interface (no restart needed)
-- **Video Chunking**: Automatically splits long videos for processing
-- **Key Frame Extraction**: Optional extraction of important video frames
-- **Docker Support**: Easy deployment with Docker
+- Dual provider support: Google Gemini and OpenRouter.
+- Dynamic model list per provider.
+- Runtime API key setup in UI (no restart required).
+- 9 built-in analysis prompt types from XML templates.
+- Prompt Generation for:
+  - Analysis prompt (`<prompt>` structure).
+  - Keyframes criteria (`<keyframes_criteria>` structure).
+- Editable keyframes criteria in UI.
+- Automatic keyframes JSON format injection during analysis.
+- Automatic video chunking for long inputs.
+- Optional silence-aware chunk splitting around target boundaries.
+- Job-based progress polling.
+- Markdown analysis result output.
+- Keyframe ZIP export from parsed analysis keyframes.
+- Docker and manual run support.
 
 ## Quick Start
 
-### Using Docker (Recommended)
+### Docker (recommended)
 
-1. Clone the repository:
+1. Clone and enter project:
+
 ```bash
 git clone <repository-url>
-cd video_analyzer_web
+cd video_analyzer
 ```
 
-2. (Optional) Configure environment variables:
+2. Optional env setup:
+
 ```bash
 cp .env.example .env
-# Edit .env with your API keys (or enter them via web interface)
+# edit values if needed
 ```
 
-3. Build and run:
+3. Start app:
+
 ```bash
-docker-compose up -d
+docker compose up -d --build
 ```
 
-4. Open http://localhost:8000 in your browser
+4. Open `http://localhost:8000`.
 
-### Manual Installation
+### Manual run
 
 1. Install dependencies:
+
 ```bash
 pip install -r requirements.txt
 ```
 
 2. Install FFmpeg:
+
 ```bash
 # macOS
 brew install ffmpeg
 
 # Ubuntu/Debian
 sudo apt-get install ffmpeg
-
-# Windows
-# Download from https://ffmpeg.org/download.html
 ```
 
-3. Configure environment:
+3. Optional env setup:
+
 ```bash
 cp .env.example .env
-# Edit .env with your settings
 ```
 
-4. Run the application:
+4. Run server:
+
 ```bash
 uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
-## Usage
+## Usage Flow
 
-### 1. Select AI Provider
+1. Select provider and model.
+2. Configure API key for selected provider (if missing).
+3. Upload video.
+4. Select analysis type.
+5. Optional: generate analysis prompt via Prompt Generation block.
+6. Optional: enable keyframes and:
+   - Edit default criteria.
+   - Or generate criteria via Prompt Generation block.
+7. Start analysis.
+8. Review markdown results.
+9. Optional: download keyframes ZIP.
 
-Choose between:
-- **Google Gemini**: Direct access to Google's Gemini models
-- **OpenRouter**: Access to multiple AI providers through one API
+## Built-in Video Types
 
-If the API key is not configured, you'll be prompted to enter it in the web interface.
-
-### 2. Upload Video
-
-- Drag and drop your video file or click to browse
-- Supported formats: MP4, AVI, MOV, MKV, WebM, M4V, WMV, FLV
-- Maximum file size: 500MB (configurable)
-
-### 3. Select Analysis Type
-
-Choose from 9 specialized analysis types:
-
-| Type | Best For |
-|------|----------|
-| General Analysis | Any video content |
-| Lecture / Educational | Online courses, educational content |
-| Tutorial / How-to | Step-by-step guides |
-| Marketing / Product Demo | Advertisements, product videos |
-| Presentation / Pitch | Business presentations |
-| Meeting / Standup | Work meetings, team calls |
-| Interview Evaluation | Job interviews (detailed scoring) |
-| Language Lesson | Language instruction (full transcript) |
-| Voiceover / Sound Design | Generate AI music/SFX prompts |
-
-### 4. Customize Prompt (Optional)
-
-- View the default prompt for your selected type
-- Override with a custom prompt if needed
-- Enable key frame extraction for timestamp-marked frames
-
-### 5. Start Analysis
-
-Click "Start Analysis" and wait for the results. Long videos are automatically split into chunks.
+- General Analysis
+- Lecture / Educational
+- Tutorial / How-to
+- Marketing / Product Demo
+- Presentation / Pitch
+- Meeting / Standup
+- Interview Evaluation
+- Language Lesson
+- Voiceover / Sound Design
 
 ## API Reference
 
-### GET /api/config
-Get current configuration status.
+### `GET /api/config`
+Returns runtime status and defaults.
 
-### POST /api/set-api-key
-Set API key for a provider.
+### `POST /api/set-api-key`
+Sets provider API key at runtime.
+
+Request:
+
 ```json
 {
   "provider": "gemini",
-  "api_key": "your-api-key"
+  "api_key": "..."
 }
 ```
 
-### GET /api/video-types
-Get available video analysis types.
+### `POST /api/reset-api-key`
+Resets one provider key.
 
-### GET /api/prompt/{video_type}
-Get prompt template for a video type.
+Request:
 
-### GET /api/models/{provider}
-Get available models for a provider (gemini or openrouter).
+```json
+{
+  "provider": "gemini"
+}
+```
 
-### POST /api/upload
-Upload a video file. Returns file info.
+### `POST /api/reset-all`
+Resets all runtime API keys.
 
-### POST /api/analyze
-Start video analysis job.
+### `GET /api/video-types`
+Returns available analysis types and prompt availability.
 
-### GET /api/job/{job_id}
-Get status of an analysis job.
+### `GET /api/prompt/{video_type}`
+Returns built-in prompt template for selected type (without keyframes criteria).
+
+### `GET /api/keyframes-criteria-default`
+Returns default editable keyframes criteria XML.
+
+### `POST /api/generate-prompt`
+Generates model-aware prompt from user description.
+
+Request:
+
+```json
+{
+  "provider": "gemini",
+  "model": "gemini-2.5-flash",
+  "target": "analysis",
+  "description": "...",
+  "video_type": "marketing"
+}
+```
+
+`target` can be `analysis` or `keyframes`.
+
+Response:
+
+```json
+{
+  "target": "analysis",
+  "prompt": "<?xml ...>..."
+}
+```
+
+Notes:
+- Prompt extraction is lenient (structure-first).
+- If model output is unusable, server returns a deterministic fallback template.
+
+### `GET /api/models/{provider}`
+Returns video-capable models for `gemini` or `openrouter`.
+
+### `POST /api/upload`
+Uploads video file (`multipart/form-data`, field `file`).
+
+### `POST /api/analyze`
+Starts async analysis job (`multipart/form-data`).
+
+Fields:
+- `file_id`
+- `filename`
+- `video_type`
+- `provider`
+- `model`
+- `custom_prompt` (optional)
+- `with_keyframes` (optional)
+- `custom_keyframes_criteria` (optional)
+
+### `GET /api/job/{job_id}`
+Returns job status and result when completed.
+
+### `POST /api/extract-keyframes`
+Extracts frames to ZIP from parsed keyframes.
+
+Request:
+
+```json
+{
+  "filename": "uploaded_video.mp4",
+  "keyframes": [
+    {
+      "timecode": "00:01:30",
+      "title": "Important moment",
+      "frame_description": "Optional"
+    }
+  ]
+}
+```
+
+Response: ZIP file stream.
 
 ## Configuration
 
-### Environment Variables
+Environment variables:
 
 | Variable | Default | Description |
-|----------|---------|-------------|
-| `ANALYZER_TYPE` | `gemini` | Default provider (gemini or openrouter) |
-| `GEMINI_API_KEY` | - | Google Gemini API key |
-| `GEMINI_MODEL_NAME` | `gemini-2.0-flash` | Default Gemini model |
-| `OPENROUTER_API_KEY` | - | OpenRouter API key |
+|---|---|---|
+| `ANALYZER_TYPE` | `gemini` | Default provider |
+| `GEMINI_API_KEY` | empty | Gemini API key |
+| `GEMINI_MODEL_NAME` | `gemini-2.5-flash` | Default Gemini model |
+| `OPENROUTER_API_KEY` | empty | OpenRouter API key |
 | `OPENROUTER_MODEL_NAME` | `google/gemini-2.0-flash-exp:free` | Default OpenRouter model |
 | `CHUNK_DURATION_MINUTES` | `10` | Max chunk duration |
+| `CHUNK_SPLIT_MODE` | `fixed` | `fixed` or `silence_aware` |
+| `SILENCE_WINDOW_SECONDS` | `120` | Search window around target split point (seconds) |
+| `SILENCE_MIN_DURATION_SECONDS` | `3.0` | Minimum silence duration for split candidate |
+| `SILENCE_NOISE_DB` | `-35.0` | Silence threshold for `silencedetect` |
 | `MAX_UPLOAD_SIZE_MB` | `500` | Max upload size |
+| `UPLOAD_DIRECTORY` | `uploads` | Upload path |
+| `OUTPUT_DIRECTORY` | `outputs` | Output path |
+| `TEMP_DIRECTORY` | `temporary` | Temp path |
+| `PROMPTS_DIRECTORY` | `prompts` | Prompt templates path |
+| `GOOGLE_CLOUD_PROJECT_ID` | empty | Reserved config |
+| `VERTEX_AI_LOCATION` | `global` | Reserved config |
 
-### Custom Prompts
+Runtime API keys set in UI are stored in memory and are reset when the app restarts.
 
-To add custom prompts, mount a volume to `/app/prompts`:
+Chunk split behavior:
+- `fixed`: strict `CHUNK_DURATION_MINUTES` boundaries.
+- `silence_aware`: each target boundary is moved to the nearest detected silence within `±SILENCE_WINDOW_SECONDS`; if no suitable silence is found, the target boundary is kept.
 
-```yaml
-volumes:
-  - ./my_prompts:/app/prompts:ro
-```
+## Project Structure
 
-## Architecture
-
-```
-video_analyzer_web/
+```text
+video_analyzer/
 ├── app/
-│   ├── __init__.py
-│   ├── main.py          # FastAPI application
-│   ├── config.py        # Configuration management
-│   ├── prompts.py       # Prompt template management
-│   ├── video_processor.py # FFmpeg-based video processing
+│   ├── main.py                # FastAPI app and endpoints
+│   ├── config.py              # Runtime/env config manager
+│   ├── prompts.py             # Built-in prompt loading/composition
+│   ├── prompt_generation.py   # Prompt generation/extraction/fallback logic
+│   ├── video_processor.py     # Chunking and keyframe extraction (FFmpeg)
 │   └── analyzers/
-│       ├── __init__.py
-│       ├── base.py      # Base analyzer interface
-│       ├── gemini.py    # Google Gemini analyzer
-│       └── openrouter.py # OpenRouter analyzer
+│       ├── base.py
+│       ├── gemini.py
+│       └── openrouter.py
+├── templates/
+│   └── index.html             # UI markup
 ├── static/
 │   ├── css/style.css
-│   └── js/app.js
-├── templates/
-│   └── index.html
-├── prompts/             # XML prompt templates
+│   └── js/app.js              # UI logic and API calls
+├── prompts/                   # XML prompt templates
+├── uploads/
+├── outputs/
+├── temporary/
 ├── Dockerfile
 ├── docker-compose.yml
 └── requirements.txt
 ```
 
-## Getting API Keys
+## API Key Links
 
-### Google Gemini
-1. Go to [Google AI Studio](https://aistudio.google.com/apikey)
-2. Sign in with your Google account
-3. Click "Create API Key"
-4. Copy the key
-
-### OpenRouter
-1. Go to [OpenRouter](https://openrouter.ai/keys)
-2. Create an account or sign in
-3. Create a new API key
-4. Copy the key
+- Gemini: https://aistudio.google.com/apikey
+- OpenRouter: https://openrouter.ai/keys
 
 ## License
 
-MIT License
+MIT
