@@ -30,6 +30,14 @@ class BaseAnalyzer(ABC):
         pass
 
     @abstractmethod
+    async def generate_text(self, prompt: str) -> str:
+        """
+        Generate text-only output with the same model/provider.
+        Used for prompt-template generation and other non-video tasks.
+        """
+        pass
+
+    @abstractmethod
     async def get_available_models(self) -> List[Dict[str, Any]]:
         """
         Get list of available models from the provider.

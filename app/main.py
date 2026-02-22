@@ -5,6 +5,7 @@ import os
 import uuid
 import json
 import asyncio
+import logging
 from datetime import datetime
 from typing import Optional, Dict, List
 from pathlib import Path
@@ -18,8 +19,11 @@ from pydantic import BaseModel
 
 from app.config import config_manager
 from app.prompts import prompt_manager, VIDEO_TYPES
+from app.prompt_generation import prompt_generation_service, PromptGenerationError
 from app.video_processor import VideoProcessor, seconds_to_timecode
 from app.analyzers import GeminiAnalyzer, OpenRouterAnalyzer, AnalyzerError, AuthenticationError
+
+logger = logging.getLogger(__name__)
 
 
 # Initialize FastAPI app
@@ -67,6 +71,14 @@ class KeyframeItem(BaseModel):
 class ExtractKeyframesRequest(BaseModel):
     filename: str
     keyframes: List[KeyframeItem]
+
+
+class PromptGenerationRequest(BaseModel):
+    provider: str
+    model: str
+    target: str  # "analysis" or "keyframes"
+    description: str
+    video_type: Optional[str] = None
 
 
 class JobStatus(BaseModel):
@@ -188,6 +200,91 @@ async def get_keyframes_criteria_default():
     """Get default keyframes criteria description (editable by user)."""
     criteria = prompt_manager.get_keyframes_criteria_default()
     return {"criteria": criteria}
+
+
+@app.post("/api/generate-prompt")
+async def generate_prompt(request: PromptGenerationRequest):
+    """Generate model-aware XML prompt for analysis or keyframes criteria."""
+    if request.provider not in ["gemini", "openrouter"]:
+        raise HTTPException(status_code=400, detail="Invalid provider")
+
+    if request.target not in ["analysis", "keyframes"]:
+        raise HTTPException(status_code=400, detail="Invalid target")
+
+    if not request.description or not request.description.strip():
+        raise HTTPException(status_code=400, detail="Description is required")
+
+    if not request.model or not request.model.strip():
+        raise HTTPException(status_code=400, detail="Model is required")
+
+    if not config_manager.has_valid_api_key(request.provider):
+        raise HTTPException(
+            status_code=400,
+            detail=f"API key for {request.provider} not configured. Please set it first."
+        )
+
+    analyzer = None
+    try:
+        api_key = config_manager.get_api_key(request.provider)
+        if request.provider == "gemini":
+            analyzer = GeminiAnalyzer(model_name=request.model, api_key=api_key)
+        else:
+            analyzer = OpenRouterAnalyzer(model_name=request.model, api_key=api_key)
+
+        generation_instruction = prompt_generation_service.build_generation_instruction(
+            target=request.target,
+            description=request.description,
+            provider=request.provider,
+            model=request.model,
+            video_type=request.video_type
+        )
+
+        generated_raw = await analyzer.generate_text(generation_instruction)
+        try:
+            generated_xml = prompt_generation_service.extract_xml(
+                generated_raw,
+                request.target,
+                strict=False
+            )
+        except PromptGenerationError as parse_error:
+            # Local fallback only: avoid extra model call to keep latency low.
+            logger.warning(
+                "Prompt generation parse failed | provider=%s model=%s target=%s error=%s raw_head=%s",
+                request.provider,
+                request.model,
+                request.target,
+                str(parse_error),
+                str(generated_raw).replace("\n", "\\n")[:800]
+            )
+            generated_xml = prompt_generation_service.build_deterministic_fallback(
+                target=request.target,
+                description=request.description,
+                provider=request.provider,
+                model=request.model,
+                video_type=request.video_type
+            )
+            logger.warning(
+                "Prompt generation fallback template used | provider=%s model=%s target=%s",
+                request.provider,
+                request.model,
+                request.target
+            )
+
+        return {
+            "target": request.target,
+            "prompt": generated_xml
+        }
+    except PromptGenerationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except AuthenticationError as e:
+        raise HTTPException(status_code=401, detail=str(e))
+    except AnalyzerError as e:
+        raise HTTPException(status_code=502, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to generate prompt: {e}")
+    finally:
+        if analyzer and hasattr(analyzer, "close"):
+            await analyzer.close()
 
 
 @app.get("/api/models/{provider}")

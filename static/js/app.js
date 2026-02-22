@@ -62,9 +62,13 @@ const elements = {
     // Options
     videoTypeSelect: document.getElementById('video-type-select'),
     videoTypeDescription: document.getElementById('video-type-description'),
+    promptGenerationTextarea: document.getElementById('prompt-generation-textarea'),
+    generateAnalysisPromptBtn: document.getElementById('generate-analysis-prompt-btn'),
     promptTextarea: document.getElementById('prompt-textarea'),
     withKeyframes: document.getElementById('with-keyframes'),
     keyframesCriteriaContainer: document.getElementById('keyframes-criteria-container'),
+    keyframesPromptGenerationTextarea: document.getElementById('keyframes-prompt-generation-textarea'),
+    generateKeyframesPromptBtn: document.getElementById('generate-keyframes-prompt-btn'),
     keyframesCriteriaTextarea: document.getElementById('keyframes-criteria-textarea'),
 
     // Analyze
@@ -222,6 +226,76 @@ async function loadPrompt(videoType) {
         console.error('Failed to load prompt:', error);
         elements.promptTextarea.value = '';
         elements.promptTextarea.placeholder = 'Failed to load prompt';
+    }
+}
+
+async function generatePromptTemplate(target) {
+    const isAnalysisTarget = target === 'analysis';
+    const descriptionField = isAnalysisTarget
+        ? elements.promptGenerationTextarea
+        : elements.keyframesPromptGenerationTextarea;
+    const outputField = isAnalysisTarget
+        ? elements.promptTextarea
+        : elements.keyframesCriteriaTextarea;
+    const triggerButton = isAnalysisTarget
+        ? elements.generateAnalysisPromptBtn
+        : elements.generateKeyframesPromptBtn;
+
+    const description = descriptionField?.value?.trim() || '';
+    if (!description) {
+        showToast('Опишите кейс перед генерацией промпта', 'error');
+        return;
+    }
+
+    if (!state.model) {
+        showToast('Сначала выберите модель', 'error');
+        return;
+    }
+
+    const isConfigured = state.provider === 'gemini'
+        ? state.config?.gemini_configured
+        : state.config?.openrouter_configured;
+    if (!isConfigured) {
+        showToast('Сначала настройте API key для выбранного провайдера', 'error');
+        return;
+    }
+
+    try {
+        setButtonLoading(triggerButton, true);
+
+        const payload = {
+            provider: state.provider,
+            model: state.model,
+            target,
+            description,
+            video_type: state.videoType && state.videoType !== 'custom' ? state.videoType : null
+        };
+
+        const response = await fetch('/api/generate-prompt', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.detail || 'Failed to generate prompt');
+        }
+
+        const data = await response.json();
+        outputField.value = data.prompt || '';
+
+        if (isAnalysisTarget) {
+            outputField.dispatchEvent(new Event('input', { bubbles: true }));
+            showToast('Промпт анализа сгенерирован', 'success');
+        } else {
+            showToast('Критерии keyframes сгенерированы', 'success');
+        }
+    } catch (error) {
+        console.error('Failed to generate prompt:', error);
+        showToast(error.message || 'Failed to generate prompt', 'error');
+    } finally {
+        setButtonLoading(triggerButton, false);
     }
 }
 
@@ -635,6 +709,22 @@ function updateAnalyzeButton() {
     elements.analyzeBtn.disabled = !(hasVideo && hasProvider && hasModel && hasVideoType && isConfigured);
 }
 
+function setButtonLoading(button, isLoading) {
+    if (!button) return;
+
+    const btnText = button.querySelector('.btn-text');
+    const btnLoading = button.querySelector('.btn-loading');
+
+    if (btnText) {
+        btnText.style.display = isLoading ? 'none' : 'inline';
+    }
+    if (btnLoading) {
+        btnLoading.style.display = isLoading ? 'inline-flex' : 'none';
+    }
+
+    button.disabled = isLoading;
+}
+
 function showToast(message, type = 'success') {
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
@@ -808,6 +898,15 @@ elements.withKeyframes.addEventListener('change', async () => {
             }
         }
     }
+});
+
+// Prompt generation
+elements.generateAnalysisPromptBtn.addEventListener('click', () => {
+    generatePromptTemplate('analysis');
+});
+
+elements.generateKeyframesPromptBtn.addEventListener('click', () => {
+    generatePromptTemplate('keyframes');
 });
 
 // Prompt textarea - detect edits and switch to Custom

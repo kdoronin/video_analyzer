@@ -171,6 +171,25 @@
                         Prompt
                         <span class="label-hint">Edit to customize the analysis</span>
                     </label>
+                    <div class="prompt-generation-box">
+                        <label class="label" for="prompt-generation-textarea">Prompt Generation</label>
+                        <textarea
+                            id="prompt-generation-textarea"
+                            class="textarea-field prompt-generation-textarea"
+                            rows="4"
+                            placeholder="Describe your use case, analysis goals, key details, and expected output structure..."></textarea>
+                        <div class="prompt-generation-actions">
+                            <button class="btn btn-secondary" id="generate-analysis-prompt-btn" type="button">
+                                <span class="btn-text">Generate Prompt</span>
+                                <span class="btn-loading" style="display: none;">
+                                    <svg class="spinner" viewBox="0 0 24 24">
+                                        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" fill="none" stroke-dasharray="31.4 31.4" stroke-linecap="round"></circle>
+                                    </svg>
+                                </span>
+                            </button>
+                        </div>
+                        <p class="field-hint">Generates an XML prompt for the selected provider/model and inserts it below.</p>
+                    </div>
                     <textarea id="prompt-textarea" class="textarea-field prompt-textarea" rows="12" placeholder="Select a video type to load prompt..."></textarea>
                 </div>
 
@@ -187,6 +206,25 @@
                         Key Frames Criteria
                         <span class="label-hint">Describe what counts as a key frame for this video</span>
                     </label>
+                    <div class="prompt-generation-box">
+                        <label class="label" for="keyframes-prompt-generation-textarea">Prompt Generation</label>
+                        <textarea
+                            id="keyframes-prompt-generation-textarea"
+                            class="textarea-field prompt-generation-textarea"
+                            rows="4"
+                            placeholder="Describe what should count as a key frame in your case: events, scenes, text, UI states, signals..."></textarea>
+                        <div class="prompt-generation-actions">
+                            <button class="btn btn-secondary" id="generate-keyframes-prompt-btn" type="button">
+                                <span class="btn-text">Generate Prompt</span>
+                                <span class="btn-loading" style="display: none;">
+                                    <svg class="spinner" viewBox="0 0 24 24">
+                                        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" fill="none" stroke-dasharray="31.4 31.4" stroke-linecap="round"></circle>
+                                    </svg>
+                                </span>
+                            </button>
+                        </div>
+                        <p class="field-hint">Generates XML keyframe criteria for the selected provider/model and inserts them below.</p>
+                    </div>
                     <textarea id="keyframes-criteria-textarea" class="textarea-field" rows="10" placeholder="Loading default criteria..."></textarea>
                     <p class="field-hint">The JSON output format is fixed and will be added automatically.</p>
                 </div>

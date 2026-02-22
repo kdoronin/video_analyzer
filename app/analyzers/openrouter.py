@@ -177,6 +177,62 @@ class OpenRouterAnalyzer(BaseAnalyzer):
                 raise AuthenticationError(f"Authentication failed: {e}")
             raise AnalyzerError(f"OpenRouter analysis failed: {e}")
 
+    async def generate_text(self, prompt: str) -> str:
+        """Generate text-only output using OpenRouter chat completions."""
+        try:
+            api_key = self._get_api_key()
+            client = self._get_http_client()
+
+            headers = {
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+                "HTTP-Referer": "https://video-analyzer.local",
+                "X-Title": "Video Analyzer"
+            }
+
+            payload = {
+                "model": self.model_name,
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ],
+                "max_tokens": 16000
+            }
+
+            response = await client.post(
+                f"{self.BASE_URL}/chat/completions",
+                headers=headers,
+                json=payload
+            )
+
+            if response.status_code == 429:
+                raise RateLimitError("Rate limit exceeded")
+            elif response.status_code == 401 or response.status_code == 403:
+                raise AuthenticationError("Invalid API key")
+            elif response.status_code != 200:
+                raise AnalyzerError(f"API error: {response.status_code} - {response.text}")
+
+            data = response.json()
+
+            if "error" in data:
+                raise AnalyzerError(f"API error: {data['error']}")
+
+            return data["choices"][0]["message"]["content"]
+
+        except (RateLimitError, AuthenticationError):
+            raise
+        except httpx.TimeoutException:
+            raise AnalyzerError("Request timed out")
+        except Exception as e:
+            error_str = str(e).lower()
+            if "429" in error_str or "rate" in error_str:
+                raise RateLimitError(f"Rate limit exceeded: {e}")
+            elif "401" in error_str or "403" in error_str:
+                raise AuthenticationError(f"Authentication failed: {e}")
+            raise AnalyzerError(f"OpenRouter text generation failed: {e}")
+
     async def get_available_models(self) -> List[Dict[str, Any]]:
         """Get list of available models from OpenRouter that support video input."""
         try:

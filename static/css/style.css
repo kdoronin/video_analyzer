@@ -397,6 +397,24 @@ body {
     resize: vertical;
 }
 
+.prompt-generation-box {
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 0.875rem;
+    margin-bottom: 0.875rem;
+    background: #f8fafc;
+}
+
+.prompt-generation-textarea {
+    min-height: 90px;
+}
+
+.prompt-generation-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 0.625rem;
+}
+
 /* ============== Upload Area ============== */
 .upload-area {
     border: 2px dashed var(--border-color);

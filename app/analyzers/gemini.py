@@ -116,6 +116,23 @@ class GeminiAnalyzer(BaseAnalyzer):
             else:
                 raise AnalyzerError(f"Gemini analysis failed: {e}")
 
+    async def generate_text(self, prompt: str) -> str:
+        """Generate text-only content using Gemini API."""
+        try:
+            _, model = self._get_client()
+            response = await asyncio.to_thread(
+                model.generate_content,
+                prompt
+            )
+            return response.text
+        except Exception as e:
+            error_str = str(e).lower()
+            if "429" in error_str or "rate" in error_str or "quota" in error_str:
+                raise RateLimitError(f"Rate limit exceeded: {e}")
+            elif "401" in error_str or "403" in error_str or "api key" in error_str:
+                raise AuthenticationError(f"Authentication failed: {e}")
+            raise AnalyzerError(f"Gemini text generation failed: {e}")
+
     async def get_available_models(self) -> List[Dict[str, Any]]:
         """Get list of available Gemini models that support video input."""
         try:
