@@ -10,16 +10,18 @@ from datetime import datetime
 from typing import Optional, Dict, List
 from pathlib import Path
 
+import aiofiles
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, BackgroundTasks
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.requests import Request
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.config import config_manager
 from app.prompts import prompt_manager, VIDEO_TYPES
 from app.prompt_generation import prompt_generation_service, PromptGenerationError
+from app.structured_outputs import structured_output_parser
 from app.video_processor import VideoProcessor, seconds_to_timecode
 from app.analyzers import GeminiAnalyzer, OpenRouterAnalyzer, AnalyzerError, AuthenticationError
 
@@ -76,7 +78,7 @@ class ExtractKeyframesRequest(BaseModel):
 class PromptGenerationRequest(BaseModel):
     provider: str
     model: str
-    target: str  # "analysis" or "keyframes"
+    target: str  # "analysis", "keyframes", or "clips"
     description: str
     video_type: Optional[str] = None
 
@@ -88,6 +90,8 @@ class JobStatus(BaseModel):
     current_step: str
     result: Optional[str] = None
     error: Optional[str] = None
+    artifacts: Optional[Dict] = None
+    warnings: List[str] = Field(default_factory=list)
 
 
 # ============== Job Storage ==============
@@ -96,12 +100,48 @@ class JobStatus(BaseModel):
 jobs: Dict[str, Dict] = {}
 
 
+def build_public_artifacts(job_id: str, job: Dict) -> Dict:
+    """Return client-safe artifact metadata for a job."""
+    artifacts = job.get("artifacts") or {}
+    public_artifacts: Dict[str, Dict] = {}
+
+    clips = artifacts.get("clips")
+    if clips:
+        public_artifacts["clips"] = {
+            "requested": bool(clips.get("requested")),
+            "count": int(clips.get("count", 0) or 0),
+            "segments": clips.get("segments") or [],
+            "archive_ready": bool(clips.get("archive_ready")),
+            "filename": clips.get("filename"),
+            "download_url": f"/api/job/{job_id}/download-clips" if clips.get("archive_ready") else None,
+            "error": clips.get("error"),
+        }
+
+    return public_artifacts
+
+
+def append_prompt_section(prompt: str, section: Optional[str]) -> str:
+    """Append a prompt section once, preserving existing custom prompt edits."""
+    section_text = (section or "").strip()
+    if not section_text:
+        return prompt
+
+    base_prompt = (prompt or "").strip()
+    if section_text in base_prompt:
+        return base_prompt
+
+    if not base_prompt:
+        return section_text
+
+    return f"{base_prompt}\n\n{section_text}"
+
+
 # ============== API Endpoints ==============
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     """Render main page."""
-    return templates.TemplateResponse("index.html", {"request": request})
+    return templates.TemplateResponse(request, "index.html", {"request": request})
 
 
 @app.get("/api/config")
@@ -206,13 +246,20 @@ async def get_keyframes_criteria_default():
     return {"criteria": criteria}
 
 
+@app.get("/api/clips-criteria-default")
+async def get_clips_criteria_default():
+    """Get default clip extraction criteria description (editable by user)."""
+    criteria = prompt_manager.get_clips_criteria_default()
+    return {"criteria": criteria}
+
+
 @app.post("/api/generate-prompt")
 async def generate_prompt(request: PromptGenerationRequest):
     """Generate model-aware XML prompt for analysis or keyframes criteria."""
     if request.provider not in ["gemini", "openrouter"]:
         raise HTTPException(status_code=400, detail="Invalid provider")
 
-    if request.target not in ["analysis", "keyframes"]:
+    if request.target not in ["analysis", "keyframes", "clips"]:
         raise HTTPException(status_code=400, detail="Invalid target")
 
     if not request.description or not request.description.strip():
@@ -343,17 +390,27 @@ async def upload_video(file: UploadFile = File(...)):
 
     # Save file
     try:
-        content = await file.read()
-        max_size = config_manager.settings.max_upload_size_mb * 1024 * 1024
+        max_upload_size_mb = int(config_manager.settings.max_upload_size_mb or 0)
+        max_size = max_upload_size_mb * 1024 * 1024 if max_upload_size_mb > 0 else None
+        total_size = 0
 
-        if len(content) > max_size:
-            raise HTTPException(
-                status_code=400,
-                detail=f"File too large. Maximum size: {config_manager.settings.max_upload_size_mb}MB"
-            )
+        async with aiofiles.open(file_path, "wb") as f:
+            while True:
+                chunk = await file.read(1024 * 1024)
+                if not chunk:
+                    break
 
-        with open(file_path, "wb") as f:
-            f.write(content)
+                total_size += len(chunk)
+                if max_size is not None and total_size > max_size:
+                    await f.close()
+                    if file_path.exists():
+                        file_path.unlink()
+                    raise HTTPException(
+                        status_code=413,
+                        detail=f"File too large. Maximum size: {max_upload_size_mb}MB"
+                    )
+
+                await f.write(chunk)
 
         # Get video info
         processor = VideoProcessor()
@@ -363,14 +420,18 @@ async def upload_video(file: UploadFile = File(...)):
             "file_id": file_id,
             "filename": safe_filename,
             "original_name": file.filename,
-            "size_bytes": len(content),
+            "size_bytes": total_size,
             "video_info": video_info
         }
 
     except HTTPException:
         raise
     except Exception as e:
+        if file_path.exists():
+            file_path.unlink()
         raise HTTPException(status_code=500, detail=f"Failed to upload file: {e}")
+    finally:
+        await file.close()
 
 
 @app.post("/api/analyze")
@@ -383,7 +444,9 @@ async def start_analysis(
     model: str = Form(...),
     custom_prompt: Optional[str] = Form(None),
     with_keyframes: bool = Form(False),
-    custom_keyframes_criteria: Optional[str] = Form(None)
+    custom_keyframes_criteria: Optional[str] = Form(None),
+    with_clips: bool = Form(False),
+    custom_clips_criteria: Optional[str] = Form(None)
 ):
     """Start video analysis job."""
     # Validate inputs
@@ -410,6 +473,18 @@ async def start_analysis(
         "video_type": video_type,
         "provider": provider,
         "model": model,
+        "warnings": [],
+        "artifacts": {
+            "clips": {
+                "requested": with_clips,
+                "count": 0,
+                "segments": [],
+                "archive_ready": False,
+                "filename": None,
+                "archive_path": None,
+                "error": None,
+            }
+        } if with_clips else {},
     }
 
     # Start background processing
@@ -422,7 +497,9 @@ async def start_analysis(
         model,
         custom_prompt,
         with_keyframes,
-        custom_keyframes_criteria
+        custom_keyframes_criteria,
+        with_clips,
+        custom_clips_criteria
     )
 
     return {"job_id": job_id, "status": "pending"}
@@ -441,7 +518,32 @@ async def get_job_status(job_id: str):
         progress=job["progress"],
         current_step=job["current_step"],
         result=job.get("result"),
-        error=job.get("error")
+        error=job.get("error"),
+        artifacts=build_public_artifacts(job_id, job),
+        warnings=job.get("warnings", []),
+    )
+
+
+@app.get("/api/job/{job_id}/download-clips")
+async def download_clips_archive(job_id: str):
+    """Download prebuilt clips archive for a completed job."""
+    if job_id not in jobs:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    job = jobs[job_id]
+    clips = (job.get("artifacts") or {}).get("clips") or {}
+    archive_path = clips.get("archive_path")
+
+    if not clips.get("archive_ready") or not archive_path:
+        raise HTTPException(status_code=404, detail="Clip archive is not available for this job")
+
+    if not os.path.exists(archive_path):
+        raise HTTPException(status_code=404, detail="Clip archive file is missing")
+
+    return FileResponse(
+        path=archive_path,
+        filename=clips.get("filename") or f"{job_id}_clips.zip",
+        media_type="application/zip",
     )
 
 
@@ -508,7 +610,9 @@ async def process_video_job(
     model: str,
     custom_prompt: Optional[str],
     with_keyframes: bool,
-    custom_keyframes_criteria: Optional[str] = None
+    custom_keyframes_criteria: Optional[str] = None,
+    with_clips: bool = False,
+    custom_clips_criteria: Optional[str] = None
 ):
     """Process video analysis in background."""
     try:
@@ -518,20 +622,36 @@ async def process_video_job(
 
         # Load prompt
         if custom_prompt and custom_prompt.strip():
-            prompt = custom_prompt
+            prompt = custom_prompt.strip()
         else:
-            # Pass custom keyframes criteria if provided
             prompt = prompt_manager.load_prompt(
                 video_type,
-                with_keyframes,
-                custom_keyframes_criteria if custom_keyframes_criteria and custom_keyframes_criteria.strip() else None
+                with_keyframes=False,
+                with_clips=False,
             )
 
-        # Always append fixed keyframes JSON format if keyframes are enabled
+        # Criteria blocks are appended separately so they are preserved even with custom prompt edits.
         if with_keyframes:
+            keyframes_criteria = (
+                custom_keyframes_criteria.strip()
+                if custom_keyframes_criteria and custom_keyframes_criteria.strip()
+                else prompt_manager.get_keyframes_criteria_default()
+            )
+            prompt = append_prompt_section(prompt, keyframes_criteria)
+
             keyframes_format = prompt_manager.get_keyframes_format()
-            if keyframes_format:
-                prompt += "\n\n" + keyframes_format
+            prompt = append_prompt_section(prompt, keyframes_format)
+
+        if with_clips:
+            clips_criteria = (
+                custom_clips_criteria.strip()
+                if custom_clips_criteria and custom_clips_criteria.strip()
+                else prompt_manager.get_clips_criteria_default()
+            )
+            prompt = append_prompt_section(prompt, clips_criteria)
+
+            clips_format = prompt_manager.get_clips_format()
+            prompt = append_prompt_section(prompt, clips_format)
 
         jobs[job_id]["current_step"] = "Analyzing video duration..."
         jobs[job_id]["progress"] = 10
@@ -557,6 +677,7 @@ async def process_video_job(
 
         # Analyze each chunk
         analyses = []
+        all_clip_segments: List[Dict] = []
         for i, chunk in enumerate(chunks):
             chunk_progress = 20 + int((i / total_chunks) * 60)
             jobs[job_id]["progress"] = chunk_progress
@@ -569,6 +690,11 @@ async def process_video_job(
                     chunk
                 )
                 analyses.append(analysis)
+
+                if with_clips:
+                    parsed_segments = structured_output_parser.parse_clip_segments(analysis, chunk)
+                    if parsed_segments:
+                        all_clip_segments.extend(parsed_segments)
             except Exception as e:
                 jobs[job_id]["error"] = f"Failed on chunk {i+1}: {str(e)}"
                 jobs[job_id]["status"] = "failed"
@@ -601,6 +727,58 @@ async def process_video_job(
             f.write(f"**Video Type:** {VIDEO_TYPES.get(video_type, {}).get('name', video_type)}\n\n")
             f.write("---\n\n")
             f.write(final_analysis)
+
+        if with_clips:
+            jobs[job_id]["progress"] = 98
+            jobs[job_id]["current_step"] = "Preparing clip archive..."
+            clip_artifact = (jobs[job_id].get("artifacts") or {}).setdefault("clips", {})
+            unique_segments = sorted(
+                structured_output_parser.parse_clip_segments(
+                    json.dumps({"clip_segments": all_clip_segments}, ensure_ascii=False)
+                ),
+                key=lambda item: item.get("start_timecode", ""),
+            )
+            clip_artifact["segments"] = unique_segments
+            clip_artifact["count"] = len(unique_segments)
+
+            if unique_segments:
+                clip_suffix = job_id[:8]
+                clip_zip_filename = f"{video_name}_clips_{clip_suffix}.zip"
+                clip_zip_path = output_dir / clip_zip_filename
+                try:
+                    clip_result = processor.extract_clips_to_zip(
+                        video_path=file_path,
+                        clip_segments=unique_segments,
+                        output_zip_path=str(clip_zip_path),
+                        job_id=job_id,
+                    )
+                except Exception as exc:
+                    clip_result = None
+                    warning = f"Не удалось собрать архив клипов: {str(exc)}"
+                    jobs[job_id]["warnings"].append(warning)
+                    clip_artifact["error"] = warning
+                else:
+                    if clip_result["success"] and clip_result["extracted_count"] > 0:
+                        clip_artifact["archive_ready"] = True
+                        clip_artifact["filename"] = clip_zip_filename
+                        clip_artifact["archive_path"] = str(clip_zip_path)
+                        clip_artifact["count"] = clip_result["extracted_count"]
+                        clip_artifact["segments"] = clip_result["extracted"]
+                        if clip_result["failed_count"] > 0:
+                            warning = (
+                                f"Часть клипов не удалось нарезать: {clip_result['failed_count']} из "
+                                f"{clip_result['failed_count'] + clip_result['extracted_count']}."
+                            )
+                            jobs[job_id]["warnings"].append(warning)
+                            clip_artifact["error"] = warning
+                    else:
+                        warning = "Модель вернула сегменты, но архив клипов собрать не удалось."
+                        jobs[job_id]["warnings"].append(warning)
+                        clip_artifact["error"] = warning
+            else:
+                warning = "Модель не вернула ни одного сегмента для нарезки."
+                jobs[job_id]["warnings"].append(warning)
+                clip_artifact["error"] = warning
 
         # Cleanup temp files
         processor.cleanup_job(job_id)

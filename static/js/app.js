@@ -14,10 +14,14 @@ const state = {
     currentPrompt: '',
     originalPrompt: '',  // Track original prompt to detect edits
     isCustomPrompt: false,
+    uploadInProgress: false,
+    analysisStarting: false,
     jobId: null,
     config: null,
     analysisResult: '',  // Store raw markdown result
     extractedKeyframes: null,  // Store parsed keyframes from result
+    extractedClips: null,
+    jobArtifacts: null,
     // Timer state
     timerInterval: null,
     timerStartTime: null,
@@ -51,6 +55,12 @@ const elements = {
     // Upload
     uploadArea: document.getElementById('upload-area'),
     videoInput: document.getElementById('video-input'),
+    uploadLimit: document.getElementById('upload-limit'),
+    uploadProgress: document.getElementById('upload-progress'),
+    uploadProgressLabel: document.getElementById('upload-progress-label'),
+    uploadProgressPercent: document.getElementById('upload-progress-percent'),
+    uploadProgressFill: document.getElementById('upload-progress-fill'),
+    uploadProgressMeta: document.getElementById('upload-progress-meta'),
     videoInfo: document.getElementById('video-info'),
     videoPreview: document.getElementById('video-preview'),
     videoName: document.getElementById('video-name'),
@@ -70,6 +80,11 @@ const elements = {
     keyframesPromptGenerationTextarea: document.getElementById('keyframes-prompt-generation-textarea'),
     generateKeyframesPromptBtn: document.getElementById('generate-keyframes-prompt-btn'),
     keyframesCriteriaTextarea: document.getElementById('keyframes-criteria-textarea'),
+    withClips: document.getElementById('with-clips'),
+    clipsCriteriaContainer: document.getElementById('clips-criteria-container'),
+    clipsPromptGenerationTextarea: document.getElementById('clips-prompt-generation-textarea'),
+    generateClipsPromptBtn: document.getElementById('generate-clips-prompt-btn'),
+    clipsCriteriaTextarea: document.getElementById('clips-criteria-textarea'),
 
     // Analyze
     analyzeBtn: document.getElementById('analyze-btn'),
@@ -88,6 +103,7 @@ const elements = {
     copyResultsBtn: document.getElementById('copy-results-btn'),
     downloadResultsBtn: document.getElementById('download-results-btn'),
     downloadKeyframesBtn: document.getElementById('download-keyframes-btn'),
+    downloadClipsBtn: document.getElementById('download-clips-btn'),
     newAnalysisBtn: document.getElementById('new-analysis-btn'),
 
     // Error
@@ -106,6 +122,7 @@ async function fetchConfig() {
         const response = await fetch('/api/config');
         state.config = await response.json();
         updateProviderStatus();
+        updateUploadLimitHint();
     } catch (error) {
         console.error('Failed to fetch config:', error);
         showToast('Failed to load configuration', 'error');
@@ -203,6 +220,39 @@ async function fetchModels(provider) {
     }
 }
 
+function updateUploadLimitHint() {
+    if (!elements.uploadLimit || !state.config) return;
+
+    const maxUploadSizeMb = Number(state.config.max_upload_size_mb || 0);
+    if (maxUploadSizeMb > 0) {
+        elements.uploadLimit.textContent = `Maximum upload size: ${maxUploadSizeMb} MB`;
+    } else {
+        elements.uploadLimit.textContent = 'Maximum upload size: no application limit';
+    }
+}
+
+function setUploadState({ visible, percent = 0, label = 'Uploading video...', meta = '', isUploading = false }) {
+    if (elements.uploadProgress) {
+        elements.uploadProgress.style.display = visible ? 'block' : 'none';
+    }
+    if (elements.uploadProgressFill) {
+        elements.uploadProgressFill.style.width = `${percent}%`;
+    }
+    if (elements.uploadProgressPercent) {
+        elements.uploadProgressPercent.textContent = `${percent}%`;
+    }
+    if (elements.uploadProgressLabel) {
+        elements.uploadProgressLabel.textContent = label;
+    }
+    if (elements.uploadProgressMeta) {
+        elements.uploadProgressMeta.textContent = meta;
+    }
+
+    state.uploadInProgress = isUploading;
+    elements.uploadArea.classList.toggle('uploading', isUploading);
+    elements.videoInput.disabled = isUploading;
+}
+
 async function loadPrompt(videoType) {
     try {
         // Load prompt without keyframes - keyframes criteria are shown in separate textarea
@@ -231,15 +281,22 @@ async function loadPrompt(videoType) {
 
 async function generatePromptTemplate(target) {
     const isAnalysisTarget = target === 'analysis';
+    const isKeyframesTarget = target === 'keyframes';
     const descriptionField = isAnalysisTarget
         ? elements.promptGenerationTextarea
-        : elements.keyframesPromptGenerationTextarea;
+        : isKeyframesTarget
+            ? elements.keyframesPromptGenerationTextarea
+            : elements.clipsPromptGenerationTextarea;
     const outputField = isAnalysisTarget
         ? elements.promptTextarea
-        : elements.keyframesCriteriaTextarea;
+        : isKeyframesTarget
+            ? elements.keyframesCriteriaTextarea
+            : elements.clipsCriteriaTextarea;
     const triggerButton = isAnalysisTarget
         ? elements.generateAnalysisPromptBtn
-        : elements.generateKeyframesPromptBtn;
+        : isKeyframesTarget
+            ? elements.generateKeyframesPromptBtn
+            : elements.generateClipsPromptBtn;
 
     const description = descriptionField?.value?.trim() || '';
     if (!description) {
@@ -288,8 +345,10 @@ async function generatePromptTemplate(target) {
         if (isAnalysisTarget) {
             outputField.dispatchEvent(new Event('input', { bubbles: true }));
             showToast('Промпт анализа сгенерирован', 'success');
-        } else {
+        } else if (isKeyframesTarget) {
             showToast('Критерии keyframes сгенерированы', 'success');
+        } else {
+            showToast('Критерии нарезки клипов сгенерированы', 'success');
         }
     } catch (error) {
         console.error('Failed to generate prompt:', error);
@@ -344,28 +403,101 @@ async function setApiKey(provider, apiKey) {
 }
 
 async function uploadVideo(file) {
+    if (!file || state.uploadInProgress) {
+        return;
+    }
+
+    const maxUploadSizeMb = Number(state.config?.max_upload_size_mb || 0);
+    if (maxUploadSizeMb > 0 && file.size > maxUploadSizeMb * 1024 * 1024) {
+        showToast(`File is too large for current limit (${maxUploadSizeMb} MB)`, 'error');
+        return;
+    }
+
+    state.uploadedFileInfo = null;
+    updateAnalyzeButton();
+    setUploadState({
+        visible: true,
+        percent: 0,
+        label: 'Uploading video...',
+        meta: `${file.name} (${formatFileSize(file.size)})`,
+        isUploading: true
+    });
+
     try {
         const formData = new FormData();
         formData.append('file', file);
 
-        const response = await fetch('/api/upload', {
-            method: 'POST',
-            body: formData
+        const data = await new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', '/api/upload');
+            xhr.responseType = 'json';
+
+            xhr.upload.addEventListener('progress', (event) => {
+                if (event.lengthComputable) {
+                    const percent = Math.min(100, Math.round((event.loaded / event.total) * 100));
+                    setUploadState({
+                        visible: true,
+                        percent,
+                        label: 'Uploading video...',
+                        meta: `${formatFileSize(event.loaded)} of ${formatFileSize(event.total)}`,
+                        isUploading: true
+                    });
+                } else {
+                    setUploadState({
+                        visible: true,
+                        percent: 0,
+                        label: 'Uploading video...',
+                        meta: 'Upload started...',
+                        isUploading: true
+                    });
+                }
+            });
+
+            xhr.upload.addEventListener('load', () => {
+                setUploadState({
+                    visible: true,
+                    percent: 100,
+                    label: 'Upload complete',
+                    meta: 'Reading video metadata on server...',
+                    isUploading: true
+                });
+            });
+
+            xhr.onload = () => {
+                const response = xhr.response || JSON.parse(xhr.responseText || '{}');
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    resolve(response);
+                } else {
+                    reject(new Error(response.detail || 'Upload failed'));
+                }
+            };
+
+            xhr.onerror = () => reject(new Error('Upload failed'));
+            xhr.onabort = () => reject(new Error('Upload aborted'));
+            xhr.send(formData);
         });
 
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.detail || 'Upload failed');
-        }
+        setUploadState({
+            visible: true,
+            percent: 100,
+            label: 'Upload complete',
+            meta: 'Analyzing uploaded file...',
+            isUploading: false
+        });
 
-        const data = await response.json();
         state.uploadedFileInfo = data;
-
         showVideoInfo(file, data);
         showToast('Video uploaded successfully', 'success');
         updateAnalyzeButton();
     } catch (error) {
         console.error('Upload failed:', error);
+        setUploadState({
+            visible: false,
+            percent: 0,
+            label: 'Uploading video...',
+            meta: '',
+            isUploading: false
+        });
         showToast(error.message || 'Failed to upload video', 'error');
     }
 }
@@ -377,19 +509,40 @@ async function startAnalysis() {
             return;
         }
 
+        if (state.analysisStarting) {
+            return;
+        }
+
+        state.analysisStarting = true;
+        setButtonLoading(elements.analyzeBtn, true);
+        elements.progressSection.style.display = 'block';
+        elements.resultsSection.style.display = 'none';
+        elements.errorSection.style.display = 'none';
+        elements.progressFill.style.width = '0%';
+        elements.progressText.textContent = 'Starting analysis...';
+        elements.progressPercent.textContent = '0%';
+
         const formData = new FormData();
         formData.append('file_id', state.uploadedFileInfo.file_id);
         formData.append('filename', state.uploadedFileInfo.filename);
-        formData.append('video_type', state.videoType === 'custom' ? 'generic' : state.videoType);
+        formData.append('video_type', state.videoType === 'custom' ? 'general' : state.videoType);
         formData.append('provider', state.provider);
         formData.append('model', state.model);
         formData.append('with_keyframes', elements.withKeyframes.checked);
+        formData.append('with_clips', elements.withClips.checked);
 
         // Get custom keyframes criteria if keyframes are enabled
         if (elements.withKeyframes.checked && elements.keyframesCriteriaTextarea) {
             const keyframesCriteria = elements.keyframesCriteriaTextarea.value.trim();
             if (keyframesCriteria) {
                 formData.append('custom_keyframes_criteria', keyframesCriteria);
+            }
+        }
+
+        if (elements.withClips.checked && elements.clipsCriteriaTextarea) {
+            const clipsCriteria = elements.clipsCriteriaTextarea.value.trim();
+            if (clipsCriteria) {
+                formData.append('custom_clips_criteria', clipsCriteria);
             }
         }
 
@@ -412,12 +565,6 @@ async function startAnalysis() {
         const data = await response.json();
         state.jobId = data.job_id;
 
-        // Show progress
-        elements.analyzeBtn.disabled = true;
-        elements.progressSection.style.display = 'block';
-        elements.resultsSection.style.display = 'none';
-        elements.errorSection.style.display = 'none';
-
         // Start timer
         startTimer();
 
@@ -425,6 +572,9 @@ async function startAnalysis() {
         pollJobStatus();
     } catch (error) {
         console.error('Failed to start analysis:', error);
+        state.analysisStarting = false;
+        setButtonLoading(elements.analyzeBtn, false);
+        elements.progressSection.style.display = 'none';
         showToast(error.message || 'Failed to start analysis', 'error');
     }
 }
@@ -442,15 +592,17 @@ async function pollJobStatus() {
         elements.progressPercent.textContent = `${job.progress}%`;
 
         if (job.status === 'completed') {
-            showResults(job.result);
+            showResults(job.result, job.artifacts || {}, job.warnings || []);
         } else if (job.status === 'failed') {
             showError(job.error);
         } else {
+            state.analysisStarting = false;
             // Continue polling
             setTimeout(pollJobStatus, 1000);
         }
     } catch (error) {
         console.error('Failed to fetch job status:', error);
+        state.analysisStarting = false;
         showError('Lost connection to server');
     }
 }
@@ -545,6 +697,13 @@ function showChangeKeyInput() {
 }
 
 function showVideoInfo(file, uploadInfo) {
+    setUploadState({
+        visible: false,
+        percent: 0,
+        label: 'Uploading video...',
+        meta: '',
+        isUploading: false
+    });
     elements.uploadArea.style.display = 'none';
     elements.videoInfo.style.display = 'grid';
 
@@ -560,6 +719,13 @@ function showVideoInfo(file, uploadInfo) {
 }
 
 function hideVideoInfo() {
+    setUploadState({
+        visible: false,
+        percent: 0,
+        label: 'Uploading video...',
+        meta: '',
+        isUploading: false
+    });
     elements.uploadArea.style.display = 'block';
     elements.videoInfo.style.display = 'none';
     elements.videoPreview.src = '';
@@ -597,6 +763,36 @@ function parseKeyframesFromResult(result) {
         }
     } catch (error) {
         console.error('Failed to parse keyframes from result:', error);
+    }
+    return null;
+}
+
+/**
+ * Parse clip segments JSON from analysis result.
+ * Looks for JSON block with clip_segments array.
+ */
+function parseClipSegmentsFromResult(result) {
+    try {
+        const jsonMatch = result.match(/```json\s*([\s\S]*?)\s*```/);
+        let jsonStr = null;
+
+        if (jsonMatch) {
+            jsonStr = jsonMatch[1];
+        } else {
+            const rawMatch = result.match(/\{\s*"clip_segments"\s*:\s*\[[\s\S]*?\]\s*\}/);
+            if (rawMatch) {
+                jsonStr = rawMatch[0];
+            }
+        }
+
+        if (jsonStr) {
+            const parsed = JSON.parse(jsonStr);
+            if (parsed.clip_segments && Array.isArray(parsed.clip_segments) && parsed.clip_segments.length > 0) {
+                return parsed.clip_segments;
+            }
+        }
+    } catch (error) {
+        console.error('Failed to parse clip segments from result:', error);
     }
     return null;
 }
@@ -650,7 +846,50 @@ async function downloadKeyframes() {
     }
 }
 
-function showResults(result) {
+/**
+ * Download prebuilt clips ZIP archive for the current job.
+ */
+async function downloadClips() {
+    if (!state.jobId) {
+        showToast('No job is available for clip download', 'error');
+        return;
+    }
+
+    const btn = elements.downloadClipsBtn;
+    btn.querySelector('.btn-text').style.display = 'none';
+    btn.querySelector('.btn-loading').style.display = 'inline-flex';
+    btn.disabled = true;
+
+    try {
+        const response = await fetch(`/api/job/${state.jobId}/download-clips`);
+
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new Error(error.detail || 'Failed to download clips');
+        }
+
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${state.uploadedFileInfo.filename.replace(/\.[^/.]+$/, '')}_clips.zip`;
+        a.click();
+        URL.revokeObjectURL(url);
+
+        const clipCount = state.jobArtifacts?.clips?.count || state.extractedClips?.length || 0;
+        showToast(`Downloaded ${clipCount} clip${clipCount === 1 ? '' : 's'}`, 'success');
+    } catch (error) {
+        console.error('Failed to download clips:', error);
+        showToast(error.message || 'Failed to download clips', 'error');
+    } finally {
+        btn.querySelector('.btn-text').style.display = 'inline';
+        btn.querySelector('.btn-loading').style.display = 'none';
+        btn.disabled = false;
+    }
+}
+
+function showResults(result, artifacts = {}, warnings = []) {
+    state.analysisStarting = false;
     // Stop timer and show elapsed time
     stopTimer();
     const elapsedFormatted = formatTimer(state.elapsedTime);
@@ -658,13 +897,15 @@ function showResults(result) {
 
     elements.progressSection.style.display = 'none';
     elements.resultsSection.style.display = 'block';
-    elements.analyzeBtn.disabled = false;
+    setButtonLoading(elements.analyzeBtn, false);
 
     // Store raw markdown for copy/download
     state.analysisResult = result;
+    state.jobArtifacts = artifacts || {};
 
     // Try to parse keyframes from result
     state.extractedKeyframes = parseKeyframesFromResult(result);
+    state.extractedClips = state.jobArtifacts?.clips?.segments || parseClipSegmentsFromResult(result);
 
     // Show/hide download keyframes button
     if (state.extractedKeyframes && state.extractedKeyframes.length > 0) {
@@ -675,6 +916,17 @@ function showResults(result) {
     } else {
         elements.downloadKeyframesBtn.style.display = 'none';
     }
+
+    const clipsArtifact = state.jobArtifacts?.clips;
+    if (clipsArtifact?.archive_ready) {
+        elements.downloadClipsBtn.style.display = 'inline-flex';
+        const btnText = elements.downloadClipsBtn.querySelector('.btn-text');
+        btnText.textContent = `Download Clips (${clipsArtifact.count})`;
+    } else {
+        elements.downloadClipsBtn.style.display = 'none';
+    }
+
+    warnings.forEach((warning) => showToast(warning, 'warning'));
 
     // Render markdown
     if (typeof marked !== 'undefined') {
@@ -688,13 +940,14 @@ function showResults(result) {
 }
 
 function showError(error) {
+    state.analysisStarting = false;
     // Stop timer on error
     stopTimer();
 
     elements.progressSection.style.display = 'none';
     elements.errorSection.style.display = 'block';
     elements.errorMessage.textContent = error;
-    elements.analyzeBtn.disabled = false;
+    setButtonLoading(elements.analyzeBtn, false);
 }
 
 function updateAnalyzeButton() {
@@ -706,7 +959,7 @@ function updateAnalyzeButton() {
         ? state.config?.gemini_configured
         : state.config?.openrouter_configured;
 
-    elements.analyzeBtn.disabled = !(hasVideo && hasProvider && hasModel && hasVideoType && isConfigured);
+    elements.analyzeBtn.disabled = !(hasVideo && hasProvider && hasModel && hasVideoType && isConfigured) || state.uploadInProgress || state.analysisStarting;
 }
 
 function setButtonLoading(button, isLoading) {
@@ -738,12 +991,17 @@ function showToast(message, type = 'success') {
 }
 
 function resetAnalysis() {
+    state.analysisStarting = false;
+    setButtonLoading(elements.analyzeBtn, false);
     elements.progressSection.style.display = 'none';
     elements.resultsSection.style.display = 'none';
     elements.errorSection.style.display = 'none';
     elements.downloadKeyframesBtn.style.display = 'none';
+    elements.downloadClipsBtn.style.display = 'none';
     state.jobId = null;
     state.extractedKeyframes = null;
+    state.extractedClips = null;
+    state.jobArtifacts = null;
 }
 
 // ============== Utility Functions ==============
@@ -836,11 +1094,13 @@ elements.resetKeyBtn.addEventListener('click', () => {
 
 // Video upload
 elements.uploadArea.addEventListener('click', () => {
+    if (state.uploadInProgress) return;
     elements.videoInput.click();
 });
 
 elements.uploadArea.addEventListener('dragover', (e) => {
     e.preventDefault();
+    if (state.uploadInProgress) return;
     elements.uploadArea.classList.add('dragover');
 });
 
@@ -851,6 +1111,7 @@ elements.uploadArea.addEventListener('dragleave', () => {
 elements.uploadArea.addEventListener('drop', (e) => {
     e.preventDefault();
     elements.uploadArea.classList.remove('dragover');
+    if (state.uploadInProgress) return;
 
     const files = e.dataTransfer.files;
     if (files.length > 0) {
@@ -860,6 +1121,7 @@ elements.uploadArea.addEventListener('drop', (e) => {
 });
 
 elements.videoInput.addEventListener('change', (e) => {
+    if (state.uploadInProgress) return;
     if (e.target.files.length > 0) {
         state.videoFile = e.target.files[0];
         uploadVideo(e.target.files[0]);
@@ -900,6 +1162,28 @@ elements.withKeyframes.addEventListener('change', async () => {
     }
 });
 
+elements.withClips.addEventListener('change', async () => {
+    const isChecked = elements.withClips.checked;
+
+    if (elements.clipsCriteriaContainer) {
+        elements.clipsCriteriaContainer.style.display = isChecked ? 'block' : 'none';
+    }
+
+    if (isChecked && elements.clipsCriteriaTextarea) {
+        if (!elements.clipsCriteriaTextarea.value.trim()) {
+            try {
+                const response = await fetch('/api/clips-criteria-default');
+                const data = await response.json();
+                if (data.criteria) {
+                    elements.clipsCriteriaTextarea.value = data.criteria;
+                }
+            } catch (error) {
+                console.error('Failed to load clip criteria:', error);
+            }
+        }
+    }
+});
+
 // Prompt generation
 elements.generateAnalysisPromptBtn.addEventListener('click', () => {
     generatePromptTemplate('analysis');
@@ -907,6 +1191,10 @@ elements.generateAnalysisPromptBtn.addEventListener('click', () => {
 
 elements.generateKeyframesPromptBtn.addEventListener('click', () => {
     generatePromptTemplate('keyframes');
+});
+
+elements.generateClipsPromptBtn.addEventListener('click', () => {
+    generatePromptTemplate('clips');
 });
 
 // Prompt textarea - detect edits and switch to Custom
@@ -973,6 +1261,9 @@ elements.downloadResultsBtn.addEventListener('click', () => {
 
 // Download keyframes
 elements.downloadKeyframesBtn.addEventListener('click', downloadKeyframes);
+
+// Download clips
+elements.downloadClipsBtn.addEventListener('click', downloadClips);
 
 // New analysis
 elements.newAnalysisBtn.addEventListener('click', () => {

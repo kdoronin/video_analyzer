@@ -29,7 +29,7 @@ class Settings(BaseModel):
 
     # Processing settings
     chunk_duration_minutes: int = 10
-    max_upload_size_mb: int = 500
+    max_upload_size_mb: int = 0
     chunk_split_mode: str = "fixed"  # 'fixed' or 'silence_aware'
     silence_window_seconds: int = 120
     silence_min_duration_seconds: float = 3.0
@@ -63,7 +63,7 @@ class ConfigManager:
             openrouter_api_key=os.getenv("OPENROUTER_API_KEY"),
             openrouter_model_name=os.getenv("OPENROUTER_MODEL_NAME", "google/gemini-2.0-flash-exp:free"),
             chunk_duration_minutes=int(os.getenv("CHUNK_DURATION_MINUTES", "10")),
-            max_upload_size_mb=int(os.getenv("MAX_UPLOAD_SIZE_MB", "500")),
+            max_upload_size_mb=int(os.getenv("MAX_UPLOAD_SIZE_MB", "0")),
             chunk_split_mode=os.getenv("CHUNK_SPLIT_MODE", "fixed"),
             silence_window_seconds=int(os.getenv("SILENCE_WINDOW_SECONDS", "120")),
             silence_min_duration_seconds=float(os.getenv("SILENCE_MIN_DURATION_SECONDS", "3.0")),

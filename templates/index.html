@@ -134,8 +134,19 @@
                         </svg>
                         <p class="upload-text">Drag & drop your video here</p>
                         <p class="upload-hint">or click to browse</p>
-                        <p class="upload-formats">Supported: MP4, AVI, MOV, MKV, WebM, M4V</p>
+                        <p class="upload-formats">Supported: MP4, AVI, MOV, MKV, WebM, M4V, WMV, FLV</p>
+                        <p class="upload-limit" id="upload-limit">Checking upload limit...</p>
                     </div>
+                </div>
+                <div class="upload-progress" id="upload-progress" style="display: none;">
+                    <div class="upload-progress-header">
+                        <span class="upload-progress-label" id="upload-progress-label">Uploading video...</span>
+                        <span class="upload-progress-percent" id="upload-progress-percent">0%</span>
+                    </div>
+                    <div class="progress-bar upload-progress-bar">
+                        <div class="progress-fill" id="upload-progress-fill" style="width: 0%"></div>
+                    </div>
+                    <p class="upload-progress-meta" id="upload-progress-meta">Preparing upload...</p>
                 </div>
                 <div class="video-info" id="video-info" style="display: none;">
                     <div class="video-preview">
@@ -228,6 +239,42 @@
                     <textarea id="keyframes-criteria-textarea" class="textarea-field" rows="10" placeholder="Loading default criteria..."></textarea>
                     <p class="field-hint">The JSON output format is fixed and will be added automatically.</p>
                 </div>
+
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="with-clips">
+                        <span class="checkbox-custom"></span>
+                        <span>Extract video clips as downloadable ZIP</span>
+                    </label>
+                </div>
+
+                <div class="form-group clips-criteria-container" id="clips-criteria-container" style="display: none;">
+                    <label class="label">
+                        Clip Segments Criteria
+                        <span class="label-hint">Describe what moments should be cut into standalone clips</span>
+                    </label>
+                    <div class="prompt-generation-box">
+                        <label class="label" for="clips-prompt-generation-textarea">Prompt Generation</label>
+                        <textarea
+                            id="clips-prompt-generation-textarea"
+                            class="textarea-field prompt-generation-textarea"
+                            rows="4"
+                            placeholder="Describe which moments should become separate clips: demos, quotes, CTA, UI actions, highlights, mini-scenes..."></textarea>
+                        <div class="prompt-generation-actions">
+                            <button class="btn btn-secondary" id="generate-clips-prompt-btn" type="button">
+                                <span class="btn-text">Generate Prompt</span>
+                                <span class="btn-loading" style="display: none;">
+                                    <svg class="spinner" viewBox="0 0 24 24">
+                                        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" fill="none" stroke-dasharray="31.4 31.4" stroke-linecap="round"></circle>
+                                    </svg>
+                                </span>
+                            </button>
+                        </div>
+                        <p class="field-hint">Generates XML clip-segmentation criteria for the selected provider/model and inserts them below.</p>
+                    </div>
+                    <textarea id="clips-criteria-textarea" class="textarea-field" rows="10" placeholder="Loading default clip criteria..."></textarea>
+                    <p class="field-hint">The JSON output format is fixed and will be added automatically. Clips are cut and zipped automatically after analysis.</p>
+                </div>
             </section>
 
             <!-- Step 4: Analyze -->
@@ -236,7 +283,12 @@
                     <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <polygon points="5 3 19 12 5 21 5 3"></polygon>
                     </svg>
-                    <span>Start Analysis</span>
+                    <span class="btn-text">Start Analysis</span>
+                    <span class="btn-loading" style="display: none;">
+                        <svg class="spinner" viewBox="0 0 24 24">
+                            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" fill="none" stroke-dasharray="31.4 31.4" stroke-linecap="round"></circle>
+                        </svg>
+                    </span>
                 </button>
             </section>
 
@@ -288,6 +340,19 @@
                             <polyline points="21 15 16 10 5 21"></polyline>
                         </svg>
                         <span class="btn-text">Download Keyframes</span>
+                        <span class="btn-loading" style="display: none;">
+                            <svg class="spinner" viewBox="0 0 24 24">
+                                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" fill="none" stroke-dasharray="31.4 31.4" stroke-linecap="round"></circle>
+                            </svg>
+                        </span>
+                    </button>
+                    <button class="btn btn-secondary" id="download-clips-btn" style="display: none;">
+                        <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="7 10 12 15 17 10"></polyline>
+                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                        <span class="btn-text">Download Clips</span>
                         <span class="btn-loading" style="display: none;">
                             <svg class="spinner" viewBox="0 0 24 24">
                                 <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" fill="none" stroke-dasharray="31.4 31.4" stroke-linecap="round"></circle>

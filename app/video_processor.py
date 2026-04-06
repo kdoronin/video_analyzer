@@ -449,6 +449,46 @@ class VideoProcessor:
         except subprocess.CalledProcessError:
             return False
 
+    def extract_clip_segment(
+        self,
+        video_path: str,
+        start_timecode: str,
+        end_timecode: str,
+        output_path: str
+    ) -> bool:
+        """Extract a video clip between two absolute timecodes."""
+        try:
+            start_seconds = timecode_to_seconds(start_timecode)
+            end_seconds = timecode_to_seconds(end_timecode)
+        except (TypeError, ValueError):
+            return False
+
+        duration = max(0.0, end_seconds - start_seconds)
+        if duration <= 0:
+            return False
+
+        cmd = [
+            "ffmpeg",
+            "-y",
+            "-ss", str(start_seconds),
+            "-i", video_path,
+            "-t", str(duration),
+            "-map", "0:v:0?",
+            "-map", "0:a?",
+            "-c:v", "libx264",
+            "-preset", "veryfast",
+            "-crf", "20",
+            "-c:a", "aac",
+            "-b:a", "128k",
+            "-movflags", "+faststart",
+            output_path,
+        ]
+        try:
+            subprocess.run(cmd, capture_output=True, check=True)
+            return True
+        except subprocess.CalledProcessError:
+            return False
+
     def extract_keyframes_to_zip(
         self,
         video_path: str,
@@ -522,12 +562,89 @@ class VideoProcessor:
             if os.path.exists(job_temp_dir):
                 shutil.rmtree(job_temp_dir)
 
+    def extract_clips_to_zip(
+        self,
+        video_path: str,
+        clip_segments: List[Dict],
+        output_zip_path: str,
+        job_id: str
+    ) -> Dict:
+        """Extract multiple clip segments and pack them into a ZIP archive."""
+        job_temp_dir = os.path.join(self.temp_dir, f"{job_id}_clips")
+        os.makedirs(job_temp_dir, exist_ok=True)
+
+        extracted = []
+        failed = []
+
+        try:
+            for i, clip in enumerate(clip_segments):
+                start_timecode = clip.get("start_timecode", "")
+                end_timecode = clip.get("end_timecode", "")
+                title = clip.get("title", f"clip_{i+1}")
+
+                if not start_timecode or not end_timecode:
+                    failed.append({
+                        "title": title,
+                        "start_timecode": start_timecode,
+                        "end_timecode": end_timecode,
+                        "error": "Missing clip timecodes",
+                    })
+                    continue
+
+                safe_title = self._sanitize_filename_fragment(title, max_length=60)
+                clip_filename = (
+                    f"{i+1:03d}_{start_timecode.replace(':', '-')}"
+                    f"_{end_timecode.replace(':', '-')}_{safe_title}.mp4"
+                )
+                clip_path = os.path.join(job_temp_dir, clip_filename)
+
+                if self.extract_clip_segment(video_path, start_timecode, end_timecode, clip_path):
+                    extracted.append({
+                        "filename": clip_filename,
+                        "start_timecode": start_timecode,
+                        "end_timecode": end_timecode,
+                        "title": title,
+                        "description": clip.get("description"),
+                        "selection_reason": clip.get("selection_reason"),
+                    })
+                else:
+                    failed.append({
+                        "title": title,
+                        "start_timecode": start_timecode,
+                        "end_timecode": end_timecode,
+                        "error": "Failed to extract clip",
+                    })
+
+            with zipfile.ZipFile(output_zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+                for item in extracted:
+                    clip_path = os.path.join(job_temp_dir, item["filename"])
+                    zf.write(clip_path, item["filename"])
+
+            return {
+                "success": True,
+                "zip_path": output_zip_path,
+                "extracted_count": len(extracted),
+                "failed_count": len(failed),
+                "extracted": extracted,
+                "failed": failed,
+            }
+        finally:
+            import shutil
+            if os.path.exists(job_temp_dir):
+                shutil.rmtree(job_temp_dir)
+
     def cleanup_job(self, job_id: str):
         """Clean up temporary files for a job."""
         import shutil
         job_temp_dir = os.path.join(self.temp_dir, job_id)
         if os.path.exists(job_temp_dir):
             shutil.rmtree(job_temp_dir)
+
+    def _sanitize_filename_fragment(self, value: str, max_length: int = 50) -> str:
+        """Sanitize human text to a safe filename fragment."""
+        safe_value = "".join(c if c.isalnum() or c in "- _" else "_" for c in (value or ""))
+        safe_value = safe_value.strip().replace(" ", "_")
+        return (safe_value[:max_length] or "segment")
 
 
 def seconds_to_timecode(seconds: float) -> str:

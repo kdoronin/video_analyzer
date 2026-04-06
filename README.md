@@ -180,6 +180,10 @@ Returns video-capable models for `gemini` or `openrouter`.
 ### `POST /api/upload`
 Uploads video file (`multipart/form-data`, field `file`).
 
+Notes:
+- Upload is streamed to disk.
+- `MAX_UPLOAD_SIZE_MB=0` disables the application-level size limit.
+
 ### `POST /api/analyze`
 Starts async analysis job (`multipart/form-data`).
 
@@ -232,7 +236,7 @@ Environment variables:
 | `SILENCE_WINDOW_SECONDS` | `120` | Search window around target split point (seconds) |
 | `SILENCE_MIN_DURATION_SECONDS` | `3.0` | Minimum silence duration for split candidate |
 | `SILENCE_NOISE_DB` | `-35.0` | Silence threshold for `silencedetect` |
-| `MAX_UPLOAD_SIZE_MB` | `500` | Max upload size |
+| `MAX_UPLOAD_SIZE_MB` | `0` | Max upload size in MB, `0` disables the limit |
 | `UPLOAD_DIRECTORY` | `uploads` | Upload path |
 | `OUTPUT_DIRECTORY` | `outputs` | Output path |
 | `TEMP_DIRECTORY` | `temporary` | Temp path |

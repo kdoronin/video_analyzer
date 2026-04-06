@@ -81,45 +81,27 @@ class PromptManager:
 
     def get_keyframes_criteria_default(self) -> str:
         """Get default keyframes criteria description (editable by user)."""
-        cache_key = "keyframes_criteria_default"
-
-        if cache_key in self._cache:
-            return self._cache[cache_key]
-
-        criteria_path = os.path.join(self.prompts_dir, "keyframes_criteria_default.xml")
-
-        if not os.path.exists(criteria_path):
-            return ""
-
-        with open(criteria_path, "r", encoding="utf-8") as f:
-            criteria = f.read()
-
-        self._cache[cache_key] = criteria
-        return criteria
+        return self._load_cached_prompt_file("keyframes_criteria_default", "keyframes_criteria_default.xml")
 
     def get_keyframes_format(self) -> str:
         """Get keyframes JSON format specification (fixed, not editable)."""
-        cache_key = "keyframes_format"
+        return self._load_cached_prompt_file("keyframes_format", "keyframes_format.xml")
 
-        if cache_key in self._cache:
-            return self._cache[cache_key]
+    def get_clips_criteria_default(self) -> str:
+        """Get default clip extraction criteria description (editable by user)."""
+        return self._load_cached_prompt_file("clips_criteria_default", "clips_criteria_default.xml")
 
-        format_path = os.path.join(self.prompts_dir, "keyframes_format.xml")
-
-        if not os.path.exists(format_path):
-            return ""
-
-        with open(format_path, "r", encoding="utf-8") as f:
-            format_spec = f.read()
-
-        self._cache[cache_key] = format_spec
-        return format_spec
+    def get_clips_format(self) -> str:
+        """Get clip segments JSON format specification (fixed, not editable)."""
+        return self._load_cached_prompt_file("clips_format", "clips_format.xml")
 
     def load_prompt(
         self,
         video_type: str,
         with_keyframes: bool = False,
-        custom_keyframes_criteria: Optional[str] = None
+        custom_keyframes_criteria: Optional[str] = None,
+        with_clips: bool = False,
+        custom_clips_criteria: Optional[str] = None
     ) -> str:
         """
         Load prompt template for specified video type.
@@ -137,11 +119,11 @@ class PromptManager:
         prompt_file = type_info["prompt_file"]
 
         # Don't cache when using custom keyframes criteria
-        if custom_keyframes_criteria is not None:
+        if custom_keyframes_criteria is not None or custom_clips_criteria is not None:
             use_cache = False
         else:
             use_cache = True
-            cache_key = f"{prompt_file}_{with_keyframes}"
+            cache_key = f"{prompt_file}_{with_keyframes}_{with_clips}"
             if cache_key in self._cache:
                 return self._cache[cache_key]
 
@@ -164,10 +146,34 @@ class PromptManager:
             if criteria:
                 prompt += "\n\n" + criteria
 
+        if with_clips:
+            if custom_clips_criteria is not None:
+                criteria = custom_clips_criteria
+            else:
+                criteria = self.get_clips_criteria_default()
+
+            if criteria:
+                prompt += "\n\n" + criteria
+
         if use_cache:
             self._cache[cache_key] = prompt
 
         return prompt
+
+    def _load_cached_prompt_file(self, cache_key: str, filename: str) -> str:
+        """Load a prompt support file with cache."""
+        if cache_key in self._cache:
+            return self._cache[cache_key]
+
+        path = os.path.join(self.prompts_dir, filename)
+        if not os.path.exists(path):
+            return ""
+
+        with open(path, "r", encoding="utf-8") as f:
+            content = f.read()
+
+        self._cache[cache_key] = content
+        return content
 
     def load_combine_prompt(self) -> str:
         """Load prompt for combining chunk analyses."""

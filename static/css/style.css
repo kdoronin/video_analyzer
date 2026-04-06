@@ -425,6 +425,12 @@ body {
     transition: var(--transition);
 }
 
+.upload-area.uploading {
+    cursor: progress;
+    opacity: 0.8;
+    pointer-events: none;
+}
+
 .upload-area:hover,
 .upload-area.dragover {
     border-color: var(--primary-color);
@@ -453,6 +459,49 @@ body {
 .upload-formats {
     font-size: 0.875rem;
     color: var(--text-muted);
+}
+
+.upload-limit {
+    margin-top: 0.625rem;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+.upload-progress {
+    margin-top: 1rem;
+    padding: 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    background: #f8fafc;
+}
+
+.upload-progress-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 0.625rem;
+}
+
+.upload-progress-label {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.upload-progress-percent {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--primary-color);
+}
+
+.upload-progress-bar {
+    margin-bottom: 0.625rem;
+}
+
+.upload-progress-meta {
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
 }
 
 /* ============== Video Info ============== */

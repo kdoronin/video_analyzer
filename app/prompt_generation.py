@@ -21,6 +21,7 @@ class PromptGenerationService:
 
     ANALYSIS_ROOT = "prompt"
     KEYFRAMES_ROOT = "keyframes_criteria"
+    CLIPS_ROOT = "clip_segments_criteria"
     KEYFRAMES_ROOT_ALIASES = {
         "keyframes_criteria",
         "keyframe_criteria",
@@ -28,6 +29,14 @@ class PromptGenerationService:
         "keyframes-criteria",
         "criteria",
         "keyframesCriteria",
+    }
+    CLIPS_ROOT_ALIASES = {
+        "clip_segments_criteria",
+        "clips_criteria",
+        "clip_criteria",
+        "clip_segments",
+        "clips",
+        "clipSegmentsCriteria",
     }
     ANALYSIS_ROOT_ALIASES = {
         "prompt",
@@ -64,11 +73,18 @@ class PromptGenerationService:
                 model=model
             )
 
+        if target == "clips":
+            return self._build_clips_instruction(
+                user_description=user_description,
+                provider=provider,
+                model=model
+            )
+
         raise PromptGenerationError(f"Unsupported target: {target}")
 
     def extract_xml(self, raw_response: str, target: str, strict: bool = False) -> str:
         """Extract an XML-like block from model output."""
-        root_tag = self.ANALYSIS_ROOT if target == "analysis" else self.KEYFRAMES_ROOT
+        root_tag = self._get_root_tag(target)
         response_text = str(raw_response or "").strip()
         if not response_text:
             raise PromptGenerationError("Model returned an empty response")
@@ -149,8 +165,8 @@ class PromptGenerationService:
 
     def _normalize_root(self, xml_block: str, target: str) -> str:
         """Normalize accepted alias roots to strict expected roots."""
-        expected_root = self.ANALYSIS_ROOT if target == "analysis" else self.KEYFRAMES_ROOT
-        aliases = self.ANALYSIS_ROOT_ALIASES if target == "analysis" else self.KEYFRAMES_ROOT_ALIASES
+        expected_root = self._get_root_tag(target)
+        aliases = self._get_root_aliases(target)
 
         try:
             root = ET.fromstring(xml_block)
@@ -169,7 +185,7 @@ class PromptGenerationService:
 
     def build_repair_instruction(self, raw_response: str, target: str) -> str:
         """Build a strict repair instruction to convert malformed output to valid XML."""
-        root_tag = self.ANALYSIS_ROOT if target == "analysis" else self.KEYFRAMES_ROOT
+        root_tag = self._get_root_tag(target)
         truncated_raw = str(raw_response or "").strip()
         if len(truncated_raw) > 12000:
             truncated_raw = truncated_raw[:12000]
@@ -183,7 +199,7 @@ class PromptGenerationService:
 - <requirements> with <language>, <detail_level>, <factuality>, <timecodes>, <confidence>
 - <output> with <section>
 """
-        else:
+        elif target == "keyframes":
             required_structure = """
 - <json_output>
 - <no_limit>
@@ -191,6 +207,16 @@ class PromptGenerationService:
 - <key_frame_criteria> with <note> and multiple <item>
 - <recall_bias>
 """
+        elif target == "clips":
+            required_structure = """
+- <json_output>
+- <absolute_timecodes>
+- <segment_duration_guidance>
+- <selection_criteria> with <note> and multiple <item>
+- <coverage_policy>
+"""
+        else:
+            raise PromptGenerationError(f"Unsupported target: {target}")
 
         return f"""Convert the following model output into valid XML only.
 
@@ -240,6 +266,25 @@ Source output:
     <recall_bias>При сомнении включай кадр в выборку, чтобы не терять важный контекст.</recall_bias>
 </keyframes_criteria>"""
 
+        if target == "clips":
+            return f"""<?xml version="1.0" encoding="UTF-8"?>
+<clip_segments_criteria>
+    <json_output>Если клипы присутствуют, верни их строго в JSON внутри блока ```json ... ``` без лишнего текста.</json_output>
+    <absolute_timecodes>Все start_timecode и end_timecode должны быть абсолютными таймкодами исходного видео в формате HH:MM:SS, а не относительными к чанку.</absolute_timecodes>
+    <segment_duration_guidance>Не стремись к минимальной длине. Выделяй фрагменты такой длины, которая реально нужна для решения задачи и сохраняет цельность эпизода. Если полезный эпизод требует больше контекста, возвращай более длинный или многоминутный клип. Не вводи скрытый верхний предел длительности, если пользователь его не задал.</segment_duration_guidance>
+    <selection_criteria>
+        <note>Критерии сформированы автоматически для provider={safe_provider}, model={safe_model}. Исходный кейс: {safe_description}</note>
+        <item>Выделяй смыслово законченные фрагменты, которые можно смотреть отдельно без потери смысла.</item>
+        <item>Отмечай фрагменты с ключевыми действиями, демонстрациями, тезисами, UI-переходами, ценами, метриками или решениями.</item>
+        <item>Не режь внутри одного атомарного действия, если зрителю нужен контекст до и после события.</item>
+        <item>Не включай длинные паузы, повторяющиеся дубли и неинформативные переходы.</item>
+        <item>Если без соседнего контекста момент становится непонятным, расширяй границы клипа, а не дроби его до минимума.</item>
+        <item>Если цельный полезный эпизод длится несколько минут, верни один цельный клип, а не цепочку коротких фрагментов.</item>
+        <item>Обязательно покрывай моменты, прямо описанные пользователем: {safe_description}</item>
+    </selection_criteria>
+    <coverage_policy>Отдавай приоритет полезности для повторного использования. Не оптимизируй под минимальную длину: каждый клип должен содержать весь необходимый контекст для решения задачи. Если эпизод требует нескольких минут, верни несколько минут одним клипом.</coverage_policy>
+</clip_segments_criteria>"""
+
         return f"""<?xml version="1.0" encoding="UTF-8"?>
 <prompt>
     <type>{safe_video_type}</type>
@@ -278,7 +323,7 @@ Source output:
 
     def _validate_xml(self, xml_text: str, target: str) -> None:
         """Validate XML parseability and required structure."""
-        root_tag = self.ANALYSIS_ROOT if target == "analysis" else self.KEYFRAMES_ROOT
+        root_tag = self._get_root_tag(target)
 
         try:
             root = ET.fromstring(xml_text)
@@ -290,8 +335,10 @@ Source output:
 
         if target == "analysis":
             self._validate_analysis_xml(root)
-        else:
+        elif target == "keyframes":
             self._validate_keyframes_xml(root)
+        else:
+            self._validate_clips_xml(root)
 
     def _validate_analysis_xml(self, root: ET.Element) -> None:
         required_paths = [
@@ -345,10 +392,24 @@ Source output:
             if root.find(path) is None:
                 raise PromptGenerationError(f"Generated keyframes XML is missing required path: {path}")
 
+    def _validate_clips_xml(self, root: ET.Element) -> None:
+        required_paths = [
+            "json_output",
+            "absolute_timecodes",
+            "segment_duration_guidance",
+            "selection_criteria/note",
+            "selection_criteria/item",
+            "coverage_policy",
+        ]
+
+        for path in required_paths:
+            if root.find(path) is None:
+                raise PromptGenerationError(f"Generated clips XML is missing required path: {path}")
+
     def _validate_structure_loose(self, xml_text: str, target: str) -> None:
         """Validate only high-level structure by tag presence, without strict XML parsing."""
-        expected_root = self.ANALYSIS_ROOT if target == "analysis" else self.KEYFRAMES_ROOT
-        root_aliases = self.ANALYSIS_ROOT_ALIASES if target == "analysis" else self.KEYFRAMES_ROOT_ALIASES
+        expected_root = self._get_root_tag(target)
+        root_aliases = self._get_root_aliases(target)
 
         root_match = re.search(r"<\s*([A-Za-z_][\w:.\-]*)\b", xml_text)
         if not root_match:
@@ -368,13 +429,21 @@ Source output:
                 "requirements",
                 "output",
             ]
-        else:
+        elif target == "keyframes":
             required_tags = [
                 "json_output",
                 "no_limit",
                 "cadence",
                 "key_frame_criteria",
                 "recall_bias",
+            ]
+        else:
+            required_tags = [
+                "json_output",
+                "absolute_timecodes",
+                "segment_duration_guidance",
+                "selection_criteria",
+                "coverage_policy",
             ]
 
         for tag in required_tags:
@@ -467,6 +536,69 @@ Hard requirements:
 6) Make criteria specific, strict, and adapted to model capabilities.
 7) Ensure the result is valid XML and starts with XML declaration.
 """
+
+    def _build_clips_instruction(
+        self,
+        user_description: str,
+        provider: str,
+        model: str
+    ) -> str:
+        reference_criteria = prompt_manager.get_clips_criteria_default()
+
+        return f"""You are an expert system-prompt engineer for multimodal video clipping.
+
+Your task: generate one production-ready XML criteria template for VIDEO CLIP EXTRACTION.
+The generated criteria must be specialized for this runtime stack:
+- Provider: {provider}
+- Model: {model}
+
+User definition of useful clips:
+\"\"\"
+{user_description}
+\"\"\"
+
+Reference style (quality and depth baseline from existing repository):
+\"\"\"
+{reference_criteria}
+\"\"\"
+
+Hard requirements:
+1) Return ONLY XML, no markdown, no explanations.
+2) Root tag must be exactly <clip_segments_criteria>.
+3) Keep this structure:
+   - <json_output>
+   - <absolute_timecodes>
+   - <segment_duration_guidance>
+   - <selection_criteria> containing <note> and multiple <item>
+   - <coverage_policy>
+4) Instructions inside XML must be in Russian.
+5) Do not include JSON schema block or unrelated XML; only clip criteria XML.
+6) The criteria must explicitly require absolute original-video timecodes in HH:MM:SS.
+7) Do NOT bias the criteria toward the shortest possible clips. Segment size must be determined by task completeness and necessary context.
+8) If the user's task does not impose a size limit, do not invent one. Prefer semantically complete clips over minimal fragments.
+9) Explicitly allow multi-minute clips when they are required to keep a useful episode whole.
+10) Avoid social-short/reel bias; do not imply that clips should usually fit into ~1 minute.
+11) Make the result strict, practical, and adapted to model capabilities.
+12) Ensure the result is valid XML and starts with XML declaration.
+"""
+
+    def _get_root_tag(self, target: str) -> str:
+        if target == "analysis":
+            return self.ANALYSIS_ROOT
+        if target == "keyframes":
+            return self.KEYFRAMES_ROOT
+        if target == "clips":
+            return self.CLIPS_ROOT
+        raise PromptGenerationError(f"Unsupported target: {target}")
+
+    def _get_root_aliases(self, target: str):
+        if target == "analysis":
+            return self.ANALYSIS_ROOT_ALIASES
+        if target == "keyframes":
+            return self.KEYFRAMES_ROOT_ALIASES
+        if target == "clips":
+            return self.CLIPS_ROOT_ALIASES
+        raise PromptGenerationError(f"Unsupported target: {target}")
 
 
 prompt_generation_service = PromptGenerationService()

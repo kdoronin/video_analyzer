@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<clips_format>
+    <timecode_format_rules>
+        CRITICAL: All timecodes must be absolute timestamps of the ORIGINAL FULL VIDEO.
+        Timecode format is strictly HH:MM:SS (hours:minutes:seconds).
+        - start_timecode and end_timecode must both use HH:MM:SS
+        - end_timecode must be later than start_timecode
+        - do not return chunk-relative offsets
+
+        Examples:
+        - clip from 5s to 18s -> "00:00:05" to "00:00:18"
+        - clip from 1m 30s to 3m 45s -> "00:01:30" to "00:03:45"
+        - clip from 15m 8s to 21m 12s -> "00:15:08" to "00:21:12"
+    </timecode_format_rules>
+
+    <clip_segments_json_format><![CDATA[
+{
+  "clip_segments": [
+    {
+      "start_timecode": "00:01:30",
+      "end_timecode": "00:03:45",
+      "title": "Complete feature walkthrough",
+      "description": "Full coherent segment with enough context before, during, and after the key moment",
+      "selection_reason": "This episode should stay whole because shortening it would remove context needed for the task"
+    }
+  ]
+}
+    ]]></clip_segments_json_format>
+</clips_format>
