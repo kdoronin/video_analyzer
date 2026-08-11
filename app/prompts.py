@@ -180,14 +180,19 @@ class PromptManager:
         self._cache[cache_key] = content
         return content
 
-    def load_combine_prompt(self) -> str:
+    def load_combine_prompt(self, video_type: Optional[str] = None) -> str:
         """Load prompt for combining chunk analyses."""
-        cache_key = "combine_analysis"
+        filename = (
+            "combine_analysis_youtube_analytics.xml"
+            if video_type == "youtube_analytics"
+            else "combine_analysis_prompt.xml"
+        )
+        cache_key = f"combine_analysis_{video_type or 'default'}"
 
         if cache_key in self._cache:
             return self._cache[cache_key]
 
-        prompt_path = os.path.join(self.prompts_dir, "combine_analysis_prompt.xml")
+        prompt_path = os.path.join(self.prompts_dir, filename)
 
         if not os.path.exists(prompt_path):
             # Default combine prompt if file doesn't exist

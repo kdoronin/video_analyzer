@@ -715,7 +715,7 @@ async def process_video_job(
         jobs[job_id]["current_step"] = "Combining analyses..."
 
         if len(analyses) > 1:
-            combine_prompt = prompt_manager.load_combine_prompt()
+            combine_prompt = prompt_manager.load_combine_prompt(video_type)
             final_analysis = await analyzer.combine_analyses(analyses, combine_prompt)
         else:
             final_analysis = analyses[0]
