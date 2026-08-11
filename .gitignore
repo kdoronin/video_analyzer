@@ -30,6 +30,9 @@ uploads/
 outputs/
 temporary/
 
+# Local development specifications
+docs/specs/
+
 # Logs
 *.log
 logs/

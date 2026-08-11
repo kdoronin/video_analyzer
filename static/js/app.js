@@ -3,6 +3,8 @@
  * Main JavaScript file
  */
 
+const LAST_RESULT_STORAGE_KEY = 'video-analyzer:last-result:v1';
+
 // ============== State ==============
 
 const state = {
@@ -888,7 +890,8 @@ async function downloadClips() {
     }
 }
 
-function showResults(result, artifacts = {}, warnings = []) {
+function showResults(result, artifacts = {}, warnings = [], options = {}) {
+    const { persist = true } = options;
     state.analysisStarting = false;
     // Stop timer and show elapsed time
     stopTimer();
@@ -930,9 +933,13 @@ function showResults(result, artifacts = {}, warnings = []) {
 
     // Render markdown
     if (typeof marked !== 'undefined') {
-        elements.resultsContent.innerHTML = marked.parse(result);
+        elements.resultsContent.innerHTML = marked.parse(result, { breaks: true });
     } else {
         elements.resultsContent.textContent = result;
+    }
+
+    if (persist) {
+        saveLastResult(result, artifacts, warnings);
     }
 
     // Scroll to results
@@ -990,7 +997,7 @@ function showToast(message, type = 'success') {
     }, 5000);
 }
 
-function resetAnalysis() {
+function resetAnalysis(clearPersistedResult = false) {
     state.analysisStarting = false;
     setButtonLoading(elements.analyzeBtn, false);
     elements.progressSection.style.display = 'none';
@@ -999,12 +1006,71 @@ function resetAnalysis() {
     elements.downloadKeyframesBtn.style.display = 'none';
     elements.downloadClipsBtn.style.display = 'none';
     state.jobId = null;
+    state.analysisResult = '';
     state.extractedKeyframes = null;
     state.extractedClips = null;
     state.jobArtifacts = null;
+
+    if (clearPersistedResult) {
+        clearSavedResult();
+    }
 }
 
 // ============== Utility Functions ==============
+
+function saveLastResult(result, artifacts = {}, warnings = []) {
+    try {
+        localStorage.setItem(LAST_RESULT_STORAGE_KEY, JSON.stringify({
+            result,
+            artifacts: artifacts || {},
+            warnings: Array.isArray(warnings) ? warnings : [],
+            elapsedTime: state.elapsedTime,
+            jobId: state.jobId,
+            uploadedFileInfo: state.uploadedFileInfo,
+            savedAt: new Date().toISOString()
+        }));
+    } catch (error) {
+        console.error('Failed to persist the last result:', error);
+        showToast('Result is shown, but could not be saved for page reload', 'warning');
+    }
+}
+
+function clearSavedResult() {
+    try {
+        localStorage.removeItem(LAST_RESULT_STORAGE_KEY);
+    } catch (error) {
+        console.error('Failed to clear the saved result:', error);
+    }
+}
+
+function restoreLastResult() {
+    try {
+        const raw = localStorage.getItem(LAST_RESULT_STORAGE_KEY);
+        if (!raw) return false;
+
+        const saved = JSON.parse(raw);
+        if (!saved || typeof saved.result !== 'string' || !saved.result.trim()) {
+            clearSavedResult();
+            return false;
+        }
+
+        state.jobId = typeof saved.jobId === 'string' ? saved.jobId : null;
+        state.uploadedFileInfo = saved.uploadedFileInfo || null;
+        state.elapsedTime = Number.isFinite(saved.elapsedTime) ? saved.elapsedTime : 0;
+
+        showResults(
+            saved.result,
+            saved.artifacts || {},
+            Array.isArray(saved.warnings) ? saved.warnings : [],
+            { persist: false }
+        );
+        return true;
+    } catch (error) {
+        console.error('Failed to restore the saved result:', error);
+        clearSavedResult();
+        return false;
+    }
+}
 
 function formatDuration(seconds) {
     const h = Math.floor(seconds / 3600);
@@ -1267,7 +1333,7 @@ elements.downloadClipsBtn.addEventListener('click', downloadClips);
 
 // New analysis
 elements.newAnalysisBtn.addEventListener('click', () => {
-    resetAnalysis();
+    resetAnalysis(true);
     hideVideoInfo();
     // Reload current prompt to reset any edits
     if (state.videoType && state.videoType !== 'custom') {
@@ -1284,6 +1350,7 @@ elements.retryBtn.addEventListener('click', () => {
 // ============== Initialize ==============
 
 async function init() {
+    restoreLastResult();
     await fetchConfig();
     await fetchVideoTypes();
     fetchModels(state.provider);

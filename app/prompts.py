@@ -31,6 +31,11 @@ VIDEO_TYPES = {
         "description": "Product demonstrations, advertisements, promotional videos",
         "prompt_file": "chunk_analysis_marketing.xml"
     },
+    "youtube_analytics": {
+        "name": "YouTube Analytics",
+        "description": "YouTube-ready chapters with timestamps and a separate SEO description",
+        "prompt_file": "chunk_analysis_youtube_analytics.xml"
+    },
     "presentation": {
         "name": "Presentation / Pitch",
         "description": "Business presentations, pitches, investor decks",

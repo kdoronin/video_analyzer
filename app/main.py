@@ -35,6 +35,16 @@ app = FastAPI(
     version="1.0.0"
 )
 
+
+@app.middleware("http")
+async def prevent_app_js_cache(request: Request, call_next):
+    """Always serve the current UI application code after a page reload."""
+    response = await call_next(request)
+    if request.url.path == "/static/js/app.js":
+        response.headers["Cache-Control"] = "no-store, max-age=0"
+    return response
+
+
 # Setup static files and templates
 BASE_DIR = Path(__file__).resolve().parent.parent
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")

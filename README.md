@@ -2,7 +2,7 @@
 
 AI-powered video analysis with Google Gemini and OpenRouter.
 
-The app lets you upload a video, run chunked multimodal analysis, optionally extract key frames, and generate model-specific prompt templates from a short natural-language description.
+The app lets you upload a video, run chunked multimodal analysis, optionally extract key frames, optionally cut reusable video clips, and generate model-specific XML prompt templates from a short natural-language description.
 
 ## Features
 
@@ -13,13 +13,20 @@ The app lets you upload a video, run chunked multimodal analysis, optionally ext
 - Prompt Generation for:
   - Analysis prompt (`<prompt>` structure).
   - Keyframes criteria (`<keyframes_criteria>` structure).
+  - Clip extraction criteria (`<clip_segments_criteria>` structure).
 - Editable keyframes criteria in UI.
+- Editable clip extraction criteria in UI.
 - Automatic keyframes JSON format injection during analysis.
+- Automatic clip segments JSON format injection during analysis.
 - Automatic video chunking for long inputs.
 - Optional silence-aware chunk splitting around target boundaries.
+- Chunk-relative keyframes and clip segments are normalized to absolute source-video timecodes.
+- Streamed upload to disk for large files.
+- Upload progress UI and immediate analysis-start feedback in UI.
 - Job-based progress polling.
 - Markdown analysis result output.
 - Keyframe ZIP export from parsed analysis keyframes.
+- Clip ZIP export from model-returned clip segments.
 - Docker and manual run support.
 
 ## Quick Start
@@ -33,12 +40,14 @@ git clone <repository-url>
 cd video_analyzer
 ```
 
-2. Optional env setup:
+2. Recommended env setup:
 
 ```bash
 cp .env.example .env
 # edit values if needed
 ```
+
+If you skip `.env`, Docker Compose will still start the app, but its own fallback values apply.
 
 3. Start app:
 
@@ -88,9 +97,13 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 6. Optional: enable keyframes and:
    - Edit default criteria.
    - Or generate criteria via Prompt Generation block.
-7. Start analysis.
-8. Review markdown results.
-9. Optional: download keyframes ZIP.
+7. Optional: enable clip extraction and:
+   - Edit default clip criteria.
+   - Or generate clip criteria via Prompt Generation block.
+8. Start analysis.
+9. Review markdown results.
+10. Optional: download keyframes ZIP.
+11. Optional: download clips ZIP generated from returned clip segments.
 
 ## Built-in Video Types
 
@@ -144,6 +157,9 @@ Returns built-in prompt template for selected type (without keyframes criteria).
 ### `GET /api/keyframes-criteria-default`
 Returns default editable keyframes criteria XML.
 
+### `GET /api/clips-criteria-default`
+Returns default editable clip extraction criteria XML.
+
 ### `POST /api/generate-prompt`
 Generates model-aware prompt from user description.
 
@@ -159,7 +175,7 @@ Request:
 }
 ```
 
-`target` can be `analysis` or `keyframes`.
+`target` can be `analysis`, `keyframes`, or `clips`.
 
 Response:
 
@@ -182,6 +198,7 @@ Uploads video file (`multipart/form-data`, field `file`).
 
 Notes:
 - Upload is streamed to disk.
+- UI shows upload progress and a server-processing phase after the browser reaches `100%`.
 - `MAX_UPLOAD_SIZE_MB=0` disables the application-level size limit.
 
 ### `POST /api/analyze`
@@ -196,9 +213,13 @@ Fields:
 - `custom_prompt` (optional)
 - `with_keyframes` (optional)
 - `custom_keyframes_criteria` (optional)
+- `with_clips` (optional)
+- `custom_clips_criteria` (optional)
 
 ### `GET /api/job/{job_id}`
 Returns job status and result when completed.
+
+Returned payload may also include `artifacts.clips` with parsed clip segments, archive status, and download URL.
 
 ### `POST /api/extract-keyframes`
 Extracts frames to ZIP from parsed keyframes.
@@ -219,6 +240,9 @@ Request:
 ```
 
 Response: ZIP file stream.
+
+### `GET /api/job/{job_id}/download-clips`
+Downloads a prebuilt ZIP archive with extracted video clips for a completed job.
 
 ## Configuration
 
@@ -246,6 +270,10 @@ Environment variables:
 
 Runtime API keys set in UI are stored in memory and are reset when the app restarts.
 
+Notes:
+- In the application config, `MAX_UPLOAD_SIZE_MB=0` means no application-level upload cap.
+- If you run through Docker Compose without a `.env`, Compose may still inject its own fallback values from `docker-compose.yml`.
+
 Chunk split behavior:
 - `fixed`: strict `CHUNK_DURATION_MINUTES` boundaries.
 - `silence_aware`: each target boundary is moved to the nearest detected silence within `±SILENCE_WINDOW_SECONDS`; if no suitable silence is found, the target boundary is kept.
@@ -259,7 +287,8 @@ video_analyzer/
 │   ├── config.py              # Runtime/env config manager
 │   ├── prompts.py             # Built-in prompt loading/composition
 │   ├── prompt_generation.py   # Prompt generation/extraction/fallback logic
-│   ├── video_processor.py     # Chunking and keyframe extraction (FFmpeg)
+│   ├── structured_outputs.py  # Keyframes/clips JSON parsing and timecode normalization
+│   ├── video_processor.py     # Chunking, keyframe extraction, clip cutting (FFmpeg)
 │   └── analyzers/
 │       ├── base.py
 │       ├── gemini.py
